@@ -1,15 +1,41 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
+# Compiled Object files, Static and Dynamic libs (Shared Objects)
+*.o
+*.a
 *.so
-*.dylib
+*.pyc
 
-# Test binary, built with `go test -c`
+# Folders
+_obj
+_test
+bin
+.gocache
+
+# Architecture specific extensions/prefixes
+*.[568vq]
+[568vq].out
+
+# Vim swap files
+*.sw?
+
+*.cgo1.go
+*.cgo2.c
+_cgo_defun.c
+_cgo_gotypes.go
+_cgo_export.*
+
+_testmain.go
+
+*.sw?
+*.exe
 *.test
+*.prof
+*.coverprofile
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+tags
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# IDE support files
+.idea
+
+.vscode/*
+.hierarchy/
+.softhsm-tokens/
