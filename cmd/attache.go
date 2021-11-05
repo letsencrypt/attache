@@ -14,17 +14,17 @@ import (
 )
 
 func execRedisCLI(command string) error {
-	redisCLI, _ := exec.LookPath("redis-cli")
+	redisCli, _ := exec.LookPath("redis-cli")
 	cmd := &exec.Cmd{
-		Path:   redisCLI,
-		Args:   []string{redisCLI, command},
+		Path:   redisCli,
+		Args:   []string{redisCli, command},
 		Stdout: os.Stdout,
 		Stderr: os.Stdout,
 	}
 
 	err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("cannot run command %q: %w", command, err)
+		return fmt.Errorf("cannot run command %q with opts %q: %w", redisCli, command, err)
 	}
 	return nil
 }
@@ -37,9 +37,9 @@ func makeClusterCreateOpts(client *api.Client, awaitServiceName string) (string,
 	}
 
 	var clusterCreateOpts []string
-	clusterCreateOpts = append(clusterCreateOpts, "--cluster-yes", "create")
+	clusterCreateOpts = append(clusterCreateOpts, "--cluster", "create")
 	clusterCreateOpts = append(clusterCreateOpts, addresses...)
-	return strings.Join(append(clusterCreateOpts, "--cluster-replicas 0"), " "), nil
+	return strings.Join(append(clusterCreateOpts, "--cluster-yes", "--cluster-replicas", "0"), " "), nil
 }
 
 func newConsulClient() (*api.Client, error) {
