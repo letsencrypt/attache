@@ -14,8 +14,3 @@ Nomad.
   joins them as a new primary, and performs a shardslot rebalance
 - **Replica Scaling:** the Attaché for each shard primary detects when new
   secondary nodes are added to the configured `awaitMeet` Consul Service
-
-## Requirements
-- **Redis:**  >=v6
-- **Nomad:**  >=v1
-- **Consul:** >=v1
