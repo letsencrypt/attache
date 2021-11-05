@@ -6,26 +6,40 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"time"
+	"strings"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/letsencrypt/attache/src/leader"
 	"github.com/letsencrypt/attache/src/service"
 )
 
-func redisCommandLineExec(command string) {
-	echo, _ := exec.LookPath("echo")
-	cmdEcho := &exec.Cmd{
-		Path:   echo,
-		Args:   []string{echo, command},
+func execRedisCLI(command string) error {
+	redisCLI, _ := exec.LookPath("redis-cli")
+	cmd := &exec.Cmd{
+		Path:   redisCLI,
+		Args:   []string{redisCLI, command},
 		Stdout: os.Stdout,
 		Stderr: os.Stdout,
 	}
 
-	err := cmdEcho.Run()
+	err := cmd.Run()
 	if err != nil {
-		log.Printf("error running command %q: %s\n", command, err)
+		return fmt.Errorf("cannot run command %q: %w", command, err)
 	}
+	return nil
+}
+
+func makeClusterCreateOpts(client *api.Client, awaitServiceName string) (string, error) {
+	service := service.NewServiceClient(client, awaitServiceName, "primary", true)
+	addresses, err := service.GetAddresses()
+	if err != nil {
+		return "", err
+	}
+
+	var clusterCreateOpts []string
+	clusterCreateOpts = append(clusterCreateOpts, "--cluster-yes", "create")
+	clusterCreateOpts = append(clusterCreateOpts, addresses...)
+	return strings.Join(append(clusterCreateOpts, "--cluster-replicas 0"), " "), nil
 }
 
 func newConsulClient() (*api.Client, error) {
@@ -42,17 +56,8 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	entries, err := service.Query(client, "redis-ocsp-awaiting-intro", "primary")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	for _, entry := range entries {
-		fmt.Println(entry.Service.Address, entry.Service.Port)
-	}
-	os.Exit(0)
-
 	session := leader.NewExclusiveSession(client, "service/attache/leader", "15s")
-	session.Create()
+	err = session.Create()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -85,12 +90,19 @@ func main() {
 		doneChan := make(chan struct{})
 		go session.Renew(doneChan)
 
-		redisCommandLineExec("pretend I made a cluster lol")
-		time.Sleep(10 * time.Second)
+		createClusterOps, err := makeClusterCreateOpts(client, "redis-ocsp-awaiting-intro")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = execRedisCLI(createClusterOps)
+		if err != nil {
+			log.Fatal(err)
+		}
 		close(doneChan)
 
 		log.Println("initialization complete, cleaning up session")
-		err := session.Cleanup()
+		err = session.Cleanup()
 		if err != nil {
 			log.Println("failed to cleanup session")
 		}
