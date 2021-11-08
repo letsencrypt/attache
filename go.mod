@@ -21,4 +21,5 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.1.2 // indirect
 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b
 )

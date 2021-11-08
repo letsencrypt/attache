@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/api"
-	"github.com/letsencrypt/attache/src/cluster"
-	"github.com/letsencrypt/attache/src/service"
+	"github.com/letsencrypt/attache/src/check"
+	"github.com/letsencrypt/attache/src/control"
 )
 
 func execRedisCLI(command []string) error {
@@ -31,8 +31,8 @@ func execRedisCLI(command []string) error {
 }
 
 func makeClusterCreateOpts(client *api.Client, awaitServiceName string) ([]string, error) {
-	service := service.NewServiceClient(client, awaitServiceName, "primary", true)
-	addresses, err := service.GetAddresses()
+	check := check.NewServiceClient(client, awaitServiceName, "primary", true)
+	addresses, err := check.GetAddresses()
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,8 @@ func main() {
 			break
 		}
 
-		service := service.NewServiceClient(client, *awaitServiceName, "primary", true)
-		nodesInAwait, err := service.GetAddresses()
+		check := check.NewServiceClient(client, *awaitServiceName, "primary", true)
+		nodesInAwait, err := check.GetAddresses()
 		if err != nil {
 			log.Fatalf("cannot query consul for service %q\n", *awaitServiceName)
 		}
@@ -109,7 +109,7 @@ func main() {
 		}
 	}
 
-	session := cluster.NewExclusiveSession(client, "service/attache/leader", "15s")
+	session := control.NewExclusiveSession(client, "service/attache/leader", "15s")
 	err = session.Create()
 	if err != nil {
 		log.Fatalln(err)
