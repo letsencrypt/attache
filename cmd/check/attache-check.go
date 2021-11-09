@@ -3,94 +3,15 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/gorilla/mux"
-	"gopkg.in/yaml.v3"
+	"github.com/letsencrypt/attache/src/check"
 )
-
-type RedisHandler struct {
-	nodeAddr string
-	client   *redis.Client
-}
-
-func NewRedisHandler(redisNodeAddr, redisNodePass string) *RedisHandler {
-	return &RedisHandler{
-		nodeAddr: redisNodeAddr,
-		client: redis.NewClient(
-			&redis.Options{
-				Addr:     redisNodeAddr,
-				Password: redisNodePass,
-			},
-		),
-	}
-}
-
-type RedisClusterInfo struct {
-	State                 string `yaml:"cluster_state"`
-	SlotsAssigned         int    `yaml:"cluster_slots_assigned"`
-	SlotsOk               int    `yaml:"cluster_slots_ok"`
-	SlotsPfail            int    `yaml:"cluster_slots_pfail"`
-	SlotsFail             int    `yaml:"cluster_slots_fail"`
-	KnownNodes            int    `yaml:"cluster_known_nodes"`
-	Size                  int    `yaml:"cluster_size"`
-	CurrentEpoch          int    `yaml:"cluster_current_epoch"`
-	MyEpoch               int    `yaml:"cluster_my_epoch"`
-	StatsMessagesSent     int    `yaml:"cluster_stats_messages_sent"`
-	StatsMessagesReceived int    `yaml:"cluster_stats_messages_received"`
-}
-
-func (h *RedisHandler) getClusterInfo() (*RedisClusterInfo, error) {
-	info, err := h.client.ClusterInfo(context.Background()).Result()
-	if err != nil {
-		return nil, err
-	}
-	info = strings.ReplaceAll(info, ":", ": ")
-
-	var clusterInfo RedisClusterInfo
-	err = yaml.Unmarshal([]byte(info), &clusterInfo)
-	if err != nil {
-		return nil, err
-	}
-
-	return &clusterInfo, nil
-}
-
-func (h *RedisHandler) stateOk(w http.ResponseWriter, r *http.Request) {
-	clusterInfo, err := h.getClusterInfo()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.nodeAddr, err)))
-	} else if clusterInfo.State == "ok" {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(clusterInfo.State))
-	} else {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(clusterInfo.State))
-	}
-}
-
-func (h *RedisHandler) stateNew(w http.ResponseWriter, r *http.Request) {
-	infoOfNewNode := RedisClusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
-	clusterInfo, err := h.getClusterInfo()
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.nodeAddr, err)))
-	} else if *clusterInfo == infoOfNewNode {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("true"))
-	} else {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte("false"))
-	}
-}
 
 func main() {
 	redisNodeAddr := flag.String("redis-node-addr", "", "Address of the Redis node to be monitored (example: '127.0.0.1:6049')")
@@ -107,9 +28,9 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	handler := NewRedisHandler(*redisNodeAddr, "")
-	router.HandleFunc("/redis/clusterinfo/state/ok", handler.stateOk)
-	router.HandleFunc("/redis/clusterinfo/state/new", handler.stateNew)
+	handler := check.NewRedisCheckHandler(*redisNodeAddr, "")
+	router.HandleFunc("/redis/clusterinfo/state/ok", handler.StateOk)
+	router.HandleFunc("/redis/clusterinfo/state/new", handler.StateNew)
 
 	server := &http.Server{
 		Addr:         *checkServAddr,
