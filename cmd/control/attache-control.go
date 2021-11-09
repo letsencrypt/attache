@@ -2,10 +2,8 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"time"
 
@@ -13,35 +11,6 @@ import (
 	"github.com/letsencrypt/attache/src/check"
 	"github.com/letsencrypt/attache/src/control"
 )
-
-func execRedisCLI(command []string) error {
-	redisCli, _ := exec.LookPath("redis-cli")
-	cmd := &exec.Cmd{
-		Path:   redisCli,
-		Args:   append([]string{redisCli}, command...),
-		Stdout: os.Stdout,
-		Stderr: os.Stdout,
-	}
-
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf("cannot run command %q with opts %q: %w", redisCli, command, err)
-	}
-	return nil
-}
-
-func makeClusterCreateOpts(client *api.Client, awaitServiceName string) ([]string, error) {
-	check := check.NewServiceClient(client, awaitServiceName, "primary", true)
-	addresses, err := check.GetAddresses()
-	if err != nil {
-		return nil, err
-	}
-
-	var clusterCreateOpts []string
-	clusterCreateOpts = append(clusterCreateOpts, "--cluster", "create")
-	clusterCreateOpts = append(clusterCreateOpts, addresses...)
-	return append(clusterCreateOpts, "--cluster-yes", "--cluster-replicas", "0"), nil
-}
 
 func newConsulClient() (*api.Client, error) {
 	client, err := api.NewClient(api.DefaultConfig())
@@ -93,7 +62,7 @@ func main() {
 			break
 		}
 
-		check := check.NewServiceClient(client, *awaitServiceName, "primary", true)
+		check := check.NewServiceCatalogClient(client, *awaitServiceName, "primary", true)
 		nodesInAwait, err := check.GetAddresses()
 		if err != nil {
 			log.Fatalf("cannot query consul for service %q\n", *awaitServiceName)
@@ -109,7 +78,7 @@ func main() {
 		}
 	}
 
-	session := control.NewExclusiveSession(client, "service/attache/leader", "15s")
+	session := control.NewConsulLock(client, "service/attache/leader", "15s")
 	err = session.Create()
 	if err != nil {
 		log.Fatalln(err)
@@ -143,13 +112,9 @@ func main() {
 		doneChan := make(chan struct{})
 		go session.Renew(doneChan)
 
-		createClusterOps, err := makeClusterCreateOpts(client, *awaitServiceName)
+		err := control.RedisCLICreateCluster(client, *awaitServiceName)
 		if err != nil {
-			log.Fatal(err)
-		}
-
-		err = execRedisCLI(createClusterOps)
-		if err != nil {
+			close(doneChan)
 			log.Fatal(err)
 		}
 		close(doneChan)

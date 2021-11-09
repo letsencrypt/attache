@@ -71,12 +71,12 @@ func (h *RedisCheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RedisCheckHandler) StateNew(w http.ResponseWriter, r *http.Request) {
-	infoOfNewNode := RedisClusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
+	var infoMatchingNewNodes = RedisClusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
 	clusterInfo, err := h.getClusterInfo()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.nodeAddr, err)))
-	} else if *clusterInfo == infoOfNewNode {
+	} else if *clusterInfo == infoMatchingNewNodes {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("true"))
 	} else {

@@ -15,7 +15,7 @@ import (
 
 func main() {
 	redisNodeAddr := flag.String("redis-node-addr", "", "Address of the Redis node to be monitored (example: '127.0.0.1:6049')")
-	checkServAddr := flag.String("check-serv-addr", "", "Address the check server should listen on (example: '0.0.0.0:8080')")
+	checkServAddr := flag.String("check-serv-addr", "", "Address the check server should listen on (example: '127.0.0.0:8080')")
 	shutdownWait := flag.Duration("shutdown-wait", time.Second*15, "duration to wait for existing connections to finish (example: '1s', '1m', '1h')")
 	flag.Parse()
 

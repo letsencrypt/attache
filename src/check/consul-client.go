@@ -13,7 +13,7 @@ type ServiceCatalogClient struct {
 	onlyHealthy bool
 }
 
-func NewServiceClient(client *api.Client, serviceName, tagName string, onlyHealthy bool) *ServiceCatalogClient {
+func NewServiceCatalogClient(client *api.Client, serviceName, tagName string, onlyHealthy bool) *ServiceCatalogClient {
 	return &ServiceCatalogClient{client, serviceName, tagName, onlyHealthy}
 }
 
