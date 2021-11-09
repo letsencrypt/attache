@@ -63,48 +63,38 @@ func (h *RedisHandler) getClusterInfo() (*RedisClusterInfo, error) {
 	return &clusterInfo, nil
 }
 
-func (h *RedisHandler) clusterStateOk(w http.ResponseWriter, r *http.Request) {
+func (h *RedisHandler) stateOk(w http.ResponseWriter, r *http.Request) {
 	clusterInfo, err := h.getClusterInfo()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.nodeAddr, err)))
-
-	} else if clusterInfo.State != "ok" {
-		w.WriteHeader(http.StatusServiceUnavailable)
+	} else if clusterInfo.State == "ok" {
+		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(clusterInfo.State))
 	} else {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusServiceUnavailable)
 		w.Write([]byte(clusterInfo.State))
 	}
 }
 
-func (h *RedisHandler) clusterSlotsAssignedGt0(w http.ResponseWriter, r *http.Request) {
-	status, err := h.client.ClusterInfo(context.Background()).Result()
+func (h *RedisHandler) stateNew(w http.ResponseWriter, r *http.Request) {
+	infoOfNewNode := RedisClusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
+	clusterInfo, err := h.getClusterInfo()
 	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q", h.nodeAddr)))
-	} else {
-		log.Println(status)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.nodeAddr, err)))
+	} else if *clusterInfo == infoOfNewNode {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf("Node %q is role %q", h.nodeAddr, status)))
-	}
-}
-
-func (h *RedisHandler) clusterKnownNodesGt1(w http.ResponseWriter, r *http.Request) {
-	status, err := h.client.ClusterInfo(context.Background()).Result()
-	if err != nil {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q", h.nodeAddr)))
+		w.Write([]byte("true"))
 	} else {
-		log.Println(status)
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf("Node %q is role %q", h.nodeAddr, status)))
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte("false"))
 	}
 }
 
 func main() {
-	checkServAddr := flag.String("check-serv-addr", "", "Address the check server should listen on (example: '0.0.0.0:8080')")
 	redisNodeAddr := flag.String("redis-node-addr", "", "Address of the Redis node to be monitored (example: '127.0.0.1:6049')")
+	checkServAddr := flag.String("check-serv-addr", "", "Address the check server should listen on (example: '0.0.0.0:8080')")
 	shutdownWait := flag.Duration("shutdown-wait", time.Second*15, "duration to wait for existing connections to finish (example: '1s', '1m', '1h')")
 	flag.Parse()
 
@@ -118,7 +108,8 @@ func main() {
 
 	router := mux.NewRouter()
 	handler := NewRedisHandler(*redisNodeAddr, "")
-	router.HandleFunc("/redis/clusterinfo/ok", handler.clusterStateOk)
+	router.HandleFunc("/redis/clusterinfo/state/ok", handler.stateOk)
+	router.HandleFunc("/redis/clusterinfo/state/new", handler.stateNew)
 
 	server := &http.Server{
 		Addr:         *checkServAddr,

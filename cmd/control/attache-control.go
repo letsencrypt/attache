@@ -54,20 +54,20 @@ func newConsulClient() (*api.Client, error) {
 func main() {
 	log.Println("Attache has started")
 
-	nodeAddress := flag.String("node-address", "", "Name of the Consul Service that this Redis Node should attempt to cluster with")
-	clusterServiceName := flag.String("cluster-service-name", "", "Name of the Consul Service that this Redis Node should attempt to cluster with")
+	redisNodeAddr := flag.String("redis-node-addr", "", "Name of the Consul Service that this Redis Node should attempt to cluster with")
+	destServiceName := flag.String("dest-service-name", "", "Name of the Consul Service that this Redis Node should attempt to cluster with")
 	awaitServiceName := flag.String("await-service-name", "", "Name of the Consul Service that this Redis Node will idle in until it's clustered")
 	primaryShardCount := flag.Int("primary-shard-count", 0, "Total number of Redis Shard Primary Nodes")
 
 	log.Println("Parsing flags")
 	flag.Parse()
 
-	if *nodeAddress == "" {
-		log.Fatalln("Missing required opt: 'node-address'")
+	if *redisNodeAddr == "" {
+		log.Fatalln("Missing required opt: 'redis-node-addr'")
 	}
 
-	if *clusterServiceName == "" {
-		log.Fatalln("Missing required opt: 'cluster-service-name'")
+	if *destServiceName == "" {
+		log.Fatalln("Missing required opt: 'dest-service-name'")
 	}
 
 	if *awaitServiceName == "" {
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	if *primaryShardCount == 0 {
-		log.Fatalln("Missing required opt: 'await-service-name'")
+		log.Fatalln("Missing required opt: 'primary-shard-count'")
 	}
 
 	client, err := newConsulClient()
