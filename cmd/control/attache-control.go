@@ -27,6 +27,8 @@ func main() {
 	destServiceName := flag.String("dest-service-name", "", "Name of the Consul Service that this Redis Node should attempt to cluster with")
 	awaitServiceName := flag.String("await-service-name", "", "Name of the Consul Service that this Redis Node will idle in until it's clustered")
 	primaryShardCount := flag.Int("primary-shard-count", 0, "Total number of Redis Shard Primary Nodes")
+	attemptToJoinEvery := flag.Duration("attempt-to-join-every", 5*time.Second, "Duration to wait between attempts to join a cluster")
+	timesToAttemptJoin := flag.Int("times-to-attempt-join", 3, "Numver of times to attempt joining before exiting")
 
 	log.Println("Parsing flags")
 	flag.Parse()
@@ -47,17 +49,24 @@ func main() {
 		log.Fatalln("Missing required opt: 'primary-shard-count'")
 	}
 
+	if *attemptToJoinEvery == 0 {
+		log.Fatalln("Missing required opt: 'attempt-to-join-every'")
+	}
+
+	if *timesToAttemptJoin == 0 {
+		log.Fatalln("Missing required opt: 'times-to-attempt-join'")
+	}
+
 	client, err := newConsulClient()
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	currAttempt := 0
-	maxAttempts := 3
-	ticks := time.Tick(5 * time.Second)
+	ticks := time.Tick(*attemptToJoinEvery)
 	for range ticks {
 		currAttempt++
-		if currAttempt > maxAttempts {
+		if currAttempt > *timesToAttemptJoin {
 			log.Printf("no nodes appeared in service %q\n", *awaitServiceName)
 			break
 		}

@@ -29,8 +29,8 @@ func main() {
 
 	router := mux.NewRouter()
 	handler := check.NewRedisCheckHandler(*redisNodeAddr, "")
-	router.HandleFunc("/redis/clusterinfo/state/ok", handler.StateOk)
-	router.HandleFunc("/redis/clusterinfo/state/new", handler.StateNew)
+	router.HandleFunc("/clusterinfo/state/ok", handler.StateOk)
+	router.HandleFunc("/clusterinfo/state/new", handler.StateNew)
 
 	server := &http.Server{
 		Addr:         *checkServAddr,
