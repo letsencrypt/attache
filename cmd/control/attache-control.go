@@ -62,28 +62,40 @@ func main() {
 		log.Fatalln(err)
 	}
 
+	var createNewCluster bool
 	currAttempt := 0
 	ticks := time.Tick(*attemptToJoinEvery)
 	for range ticks {
 		currAttempt++
-		if currAttempt > *timesToAttemptJoin {
-			log.Printf("no nodes appeared in service %q\n", *awaitServiceName)
-			break
-		}
 
-		check := check.NewServiceCatalogClient(client, *awaitServiceName, "primary", true)
-		nodesInAwait, err := check.GetAddresses()
+		destService := check.NewServiceCatalogClient(client, *destServiceName, "primary", true)
+		nodesInDest, err := destService.GetAddresses()
 		if err != nil {
 			log.Fatalf("cannot query consul for service %q\n", *awaitServiceName)
 		}
-		log.Printf("found nodes %q in service %q\n", nodesInAwait, *awaitServiceName)
 
-		nodesMissing := *primaryShardCount - len(nodesInAwait)
-		if nodesMissing == 0 {
-			log.Println("all expected shard primary nodes are ready, attempting to initialize cluster")
+		if len(nodesInDest) == 0 {
+			createNewCluster = true
+			awaitService := check.NewServiceCatalogClient(client, *awaitServiceName, "primary", true)
+			nodesInAwait, err := awaitService.GetAddresses()
+
+			if err != nil {
+				log.Fatalf("cannot query consul for service %q\n", *awaitServiceName)
+			}
+			log.Printf("found nodes %q in service %q\n", nodesInAwait, *awaitServiceName)
+
+			nodesMissing := *primaryShardCount - len(nodesInAwait)
+			if nodesMissing == 0 {
+				log.Println("all expected shard primary nodes are ready, attempting to initialize cluster")
+				break
+			} else {
+				log.Printf("missing %d shard primary nodes, continuing to wait\n", nodesMissing)
+			}
+		}
+
+		if currAttempt == *timesToAttemptJoin {
+			log.Printf("failed to join or create a cluster during the time limit\n", *awaitServiceName)
 			break
-		} else {
-			log.Printf("missing %d shard primary nodes, continuing to wait\n", nodesMissing)
 		}
 	}
 
@@ -113,7 +125,28 @@ func main() {
 		os.Exit(2)
 	}()
 
-	if isLeader {
+	if isLeader && createNewCluster {
+		log.Println("aquired lock, initializing redis cluster")
+
+		// Spin off a go-routine to renew our session until cluster
+		// initialization is complete.
+		doneChan := make(chan struct{})
+		go session.Renew(doneChan)
+
+		err := control.RedisCLICreateCluster(client, *awaitServiceName)
+		if err != nil {
+			close(doneChan)
+			log.Fatal(err)
+		}
+		close(doneChan)
+
+		log.Println("initialization complete, cleaning up session")
+		err = session.Cleanup()
+		if err != nil {
+			log.Println("failed to cleanup session")
+		}
+		return
+	} else if isLeader && !createNewCluster {
 		log.Println("aquired lock, initializing redis cluster")
 
 		// Spin off a go-routine to renew our session until cluster
