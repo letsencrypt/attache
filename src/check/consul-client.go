@@ -20,7 +20,7 @@ func NewServiceCatalogClient(client *api.Client, serviceName, tagName string, on
 func (s *ServiceCatalogClient) GetAddresses() ([]string, error) {
 	nodes, _, err := s.client.Health().Service(s.serviceName, s.tagName, s.onlyHealthy, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot query consul for service %q: %w", s.serviceName, err)
 	}
 
 	var addresses []string

@@ -37,7 +37,7 @@ func (l *ConsulLock) Create() error {
 	return nil
 }
 
-// Acquire creates a mutex lock on the Consul key. After this has been aquired,
+// Acquire obtains a lock for the path of `l.key`. After this has been aquired,
 // all other clients attempting to aquire a session for the same Consul key will
 // fail.
 func (l *ConsulLock) Acquire() (bool, error) {
