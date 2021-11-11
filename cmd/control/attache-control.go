@@ -12,39 +12,91 @@ import (
 	"github.com/letsencrypt/attache/src/control"
 )
 
-func newConsulClient() (*api.Client, error) {
-	client, err := api.NewClient(api.DefaultConfig())
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
-}
-
 func main() {
 	log.Println("Attache has started")
 
 	redisNodeAddr := flag.String(
 		"redis-node-addr", "", "Address of the localhost Redis server (example: '127.0.0.1:6049')",
 	)
+
+	shardPrimaryCount := flag.Int(
+		"shard-primary-count", 0, "Total number of expected Redis shard primary nodes",
+	)
+
+	attemptToJoinEvery := flag.Duration(
+		"attempt-to-join-every",
+		5*time.Second,
+		"Duration to wait between attempts to join or create a cluster",
+	)
+
+	timesToAttempt := flag.Int(
+		"times-to-attempt-join",
+		20,
+		"Number of times to attempt joining or creating a cluster before exiting",
+	)
+
 	destServiceName := flag.String(
 		"dest-service-name",
 		"",
 		"Name of the Consul Service containing nodes that this Redis server should attempt to cluster with",
 	)
+
 	awaitServiceName := flag.String(
 		"await-service-name",
 		"",
 		"Name of the Consul Service that this node will idle in until it has joined or created a cluster",
 	)
-	shardPrimaryCount := flag.Int(
-		"shard-primary-count", 0, "Total number of expected Redis shard primary nodes")
-	attemptToJoinEvery := flag.Duration(
-		"attempt-to-join-every", 5*time.Second, "Duration to wait between attempts to join or create a cluster")
-	timesToAttempt := flag.Int(
-		"times-to-attempt-join", 20, "Number of times to attempt joining or creating a cluster before exiting")
+
+	// Consul TLS Flags
+	consulTLSAddr := flag.String(
+		"consul-tls-addr",
+		"",
+		"Address of the localhost Consul client with scheme (example: 'https://client.<dc>.consul:8501')",
+	)
+	consulCACertPath := flag.String("consul-tls-ca-pem", "", "Path to the Consul CA cert file")
+	consulCertPath := flag.String("consul-tls-cert-pem", "", "Path to the Consul client cert file")
+	consulKeyPath := flag.String("consul-tls-key-pem", "", "Path to the Consul client key file")
+	philTest := flag.Bool("phil-test", false, "This is for Phil!")
 
 	log.Println("Parsing flags")
 	flag.Parse()
+
+	var consulConfig *api.Config
+	if *consulTLSAddr != "" || *consulCACertPath != "" || *consulCertPath != "" || *consulKeyPath != "" {
+		if *consulTLSAddr == "" || *consulCACertPath == "" || *consulCertPath == "" || *consulKeyPath != "" {
+			log.Fatalln("Consul TLS opts may only be used together")
+		} else {
+			// Use TLS config
+			consulConfig = &api.Config{
+				TLSConfig: api.TLSConfig{
+					Address:  *consulTLSAddr,
+					CAFile:   *consulCACertPath,
+					CertFile: *consulCertPath,
+					KeyFile:  *consulKeyPath,
+				},
+			}
+		}
+	} else {
+		// Use default config
+		consulConfig = api.DefaultConfig()
+	}
+
+	consulClient, err := api.NewClient(consulConfig)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if *philTest {
+		log.Println("Beginning Phil Test")
+		nodes, _, err := consulClient.Health().Service("consul", "", true, nil)
+		if err != nil {
+			log.Fatalf("cannot query consul for service 'consul': %w", err)
+			os.Exit(2)
+		}
+
+		log.Printf("Nodes: %+v\n", nodes)
+		os.Exit(0)
+	}
 
 	if *redisNodeAddr == "" {
 		log.Fatalln("Missing required opt: 'redis-node-addr'")
@@ -60,11 +112,6 @@ func main() {
 
 	if *shardPrimaryCount == 0 {
 		log.Fatalln("Missing required opt: 'shard-primary-count'")
-	}
-
-	client, err := newConsulClient()
-	if err != nil {
-		log.Fatalln(err)
 	}
 
 	var createNewCluster bool
@@ -84,7 +131,7 @@ func main() {
 		// we can join. We're limiting the scope of our search to nodes tagged
 		// as 'primary', in the `destServiceName` Consul service that are
 		// healthy according to Consul health checks.
-		destService := check.NewServiceCatalogClient(client, *destServiceName, "primary", true)
+		destService := check.NewServiceCatalogClient(consulClient, *destServiceName, "primary", true)
 		primaryNodesInDest, err = destService.GetAddresses()
 		if err != nil {
 			log.Fatalln(err)
@@ -100,7 +147,7 @@ func main() {
 			// to form a cluster. We're limiting the scope of our search in the
 			// `awaitServiceName` Consul service that are healthy according to
 			// Consul health checks.
-			awaitService := check.NewServiceCatalogClient(client, *awaitServiceName, "", true)
+			awaitService := check.NewServiceCatalogClient(consulClient, *awaitServiceName, "", true)
 			nodesInAwait, err := awaitService.GetAddresses()
 			if err != nil {
 				log.Fatalln(err)
@@ -140,8 +187,8 @@ func main() {
 		log.Printf("continuing to wait, %d attempts remain\n", (*timesToAttempt - currAttempt))
 	}
 
-	session := control.NewConsulLock(client, "service/attache/leader", "15s")
-	err = session.Create()
+	session := control.NewLock(consulClient, "service/attache/leader", "15s")
+	err = session.Initialize()
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -178,7 +225,7 @@ func main() {
 		if createNewCluster {
 			log.Println("initializing a new redis cluster")
 
-			err := control.RedisCLICreateCluster(client, *awaitServiceName)
+			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)
@@ -196,9 +243,8 @@ func main() {
 		if addNodeAsPrimary {
 			log.Printf("adding node %q as a new shard primary", *redisNodeAddr)
 			// redis-cli --cluster add-node newNodeAddr existingNodeAddr
-			// redis-cli --cluster rebalance newNodeAddr
-			// --cluster-use-empty-masters
-			err := control.RedisCLICreateCluster(client, *awaitServiceName)
+			// redis-cli --cluster rebalance newNodeAddr --cluster-use-empty-masters
+			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)
@@ -216,12 +262,13 @@ func main() {
 		if addNodeAsReplica {
 			log.Printf("adding node %q as a new shard replica", *redisNodeAddr)
 			log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, primaryNodesInDest[0])
-			// redis-cli --cluster add-node newNodeAddr existingNodeAddr Use
-			// check.ClusterCheck to fetch the shard primary with the least
-			// replicas and grab it's node ID redis-cli --cluster add-node
-			// newNodeAddr existingPrimaryNodeAddr --cluster-slave
-			// --cluster-master-id existingPrimaryNodeID
-			err := control.RedisCLICreateCluster(client, *awaitServiceName)
+			// redis-cli --cluster add-node newNodeAddr existingNodeAddr
+
+			// Use check.ClusterCheck to fetch the shard primary with the least
+			// replicas and grab it's node ID
+
+			// redis-cli --cluster add-node newNodeAddr existingPrimaryNodeAddr --cluster-slave --cluster-master-id existingPrimaryNodeID
+			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)

@@ -47,3 +47,33 @@ func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
 
 	return nil
 }
+
+// func RedisCLIJoinCluster(client *api.Client, awaitServiceName string) error {
+// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
+// 	addresses, err := catalog.GetAddresses()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
+
+// func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
+// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
+// 	addresses, err := catalog.GetAddresses()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	return nil
+// }
