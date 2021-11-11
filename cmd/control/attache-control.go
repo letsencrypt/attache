@@ -63,7 +63,7 @@ func main() {
 
 	var consulConfig *api.Config
 	if *consulTLSAddr != "" || *consulCACertPath != "" || *consulCertPath != "" || *consulKeyPath != "" {
-		if *consulTLSAddr == "" || *consulCACertPath == "" || *consulCertPath == "" || *consulKeyPath != "" {
+		if *consulTLSAddr == "" || *consulCACertPath == "" || *consulCertPath == "" || *consulKeyPath == "" {
 			log.Fatalln("Consul TLS opts may only be used together")
 		} else {
 			// Use TLS config
