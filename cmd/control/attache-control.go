@@ -15,14 +15,13 @@ import (
 )
 
 type consulClientOptions struct {
-	dc            string
-	address       string
-	aclToken      string
-	tlsEnable     bool
-	tlsCACert     string
-	tlsCert       string
-	tlsKey        string
-	tlsSkipVerify bool
+	dc        string
+	address   string
+	aclToken  string
+	tlsEnable bool
+	tlsCACert string
+	tlsCert   string
+	tlsKey    string
 }
 
 func (c *consulClientOptions) makeConsulClient() (*api.Client, error) {
@@ -33,15 +32,14 @@ func (c *consulClientOptions) makeConsulClient() (*api.Client, error) {
 	if c.tlsEnable {
 		config.Scheme = "https"
 		tlsConfig := api.TLSConfig{
-			Address:            c.address,
-			CAFile:             c.tlsCACert,
-			CertFile:           c.tlsCert,
-			KeyFile:            c.tlsKey,
-			InsecureSkipVerify: c.tlsSkipVerify,
+			Address:  c.address,
+			CAFile:   c.tlsCACert,
+			CertFile: c.tlsCert,
+			KeyFile:  c.tlsKey,
 		}
 		tlsClientConf, err := api.SetupTLSConfig(&tlsConfig)
 		if err != nil {
-			return nil, fmt.Errorf("error creating tls client config for consul: %w", err)
+			return nil, fmt.Errorf("error creating TLS client config for consul: %w", err)
 		}
 		config.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsClientConf,
