@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"time"
@@ -11,6 +13,48 @@ import (
 	"github.com/letsencrypt/attache/src/check"
 	"github.com/letsencrypt/attache/src/control"
 )
+
+type consulClientOptions struct {
+	dc            string
+	address       string
+	aclToken      string
+	tlsEnable     bool
+	tlsCACert     string
+	tlsCert       string
+	tlsKey        string
+	tlsSkipVerify bool
+}
+
+func (c *consulClientOptions) makeConsulClient() (*api.Client, error) {
+	config := api.DefaultConfig()
+	config.Datacenter = c.dc
+	config.Address = c.address
+	config.Token = c.aclToken
+	if c.tlsEnable {
+		config.Scheme = "https"
+		tlsConfig := api.TLSConfig{
+			Address:            c.address,
+			CAFile:             c.tlsCACert,
+			CertFile:           c.tlsCert,
+			KeyFile:            c.tlsKey,
+			InsecureSkipVerify: c.tlsSkipVerify,
+		}
+		tlsClientConf, err := api.SetupTLSConfig(&tlsConfig)
+		if err != nil {
+			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
+		}
+		config.HttpClient.Transport = &http.Transport{
+			TLSClientConfig: tlsClientConf,
+		}
+	}
+
+	client, err := api.NewClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	return client, nil
+}
 
 func main() {
 	log.Println("Attache has started")
@@ -47,43 +91,41 @@ func main() {
 		"Name of the Consul Service that this node will idle in until it has joined or created a cluster",
 	)
 
-	// Consul TLS Flags
-	consulTLSAddr := flag.String(
-		"consul-tls-addr",
+	// Consul Flags
+	consulDC := flag.String("consul-dc", "", "Path to the Consul CA cert file")
+	consulAddr := flag.String(
+		"consul-addr",
 		"",
-		"Address of the localhost Consul client with scheme (example: 'https://client.<dc>.consul:8501')",
+		"Address of the localhost Consul client with scheme (example: '127.0.0.1:8501')",
 	)
-	consulCACertPath := flag.String("consul-tls-ca-pem", "", "Path to the Consul CA cert file")
-	consulCertPath := flag.String("consul-tls-cert-pem", "", "Path to the Consul client cert file")
-	consulKeyPath := flag.String("consul-tls-key-pem", "", "Path to the Consul client key file")
+	consulACLToken := flag.String(
+		"consul-acl-token",
+		"",
+		"The contents of the Consul ACL token this client should use",
+	)
+	consulTLSEnable := flag.Bool("consul-tls-enable", false, "Use TLS for the Consul client connection")
+	consulCACert := flag.String("consul-tls-ca-cert", "", "Path to the Consul CA cert file")
+	consulCert := flag.String("consul-tls-cert", "", "Path to the Consul client cert file")
+	consulKey := flag.String("consul-tls-key", "", "Path to the Consul client key file")
 	philTest := flag.Bool("phil-test", false, "This is for Phil!")
 
 	log.Println("Parsing flags")
 	flag.Parse()
 
-	var consulConfig *api.Config
-	if *consulTLSAddr != "" || *consulCACertPath != "" || *consulCertPath != "" || *consulKeyPath != "" {
-		if *consulTLSAddr == "" || *consulCACertPath == "" || *consulCertPath == "" || *consulKeyPath == "" {
-			log.Fatalln("Consul TLS opts may only be used together")
-		} else {
-			// Use TLS config
-			consulConfig = &api.Config{
-				TLSConfig: api.TLSConfig{
-					Address:  *consulTLSAddr,
-					CAFile:   *consulCACertPath,
-					CertFile: *consulCertPath,
-					KeyFile:  *consulKeyPath,
-				},
-			}
-		}
-	} else {
-		// Use default config
-		consulConfig = api.DefaultConfig()
+	consulClientOpts := consulClientOptions{
+		dc:        *consulDC,
+		address:   *consulAddr,
+		aclToken:  *consulACLToken,
+		tlsEnable: *consulTLSEnable,
+		tlsCACert: *consulCACert,
+		tlsCert:   *consulCert,
+		tlsKey:    *consulKey,
 	}
 
-	consulClient, err := api.NewClient(consulConfig)
+	log.Println("Initializing Consul client")
+	consulClient, err := consulClientOpts.makeConsulClient()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 
 	if *philTest {
@@ -93,8 +135,9 @@ func main() {
 			log.Fatalf("cannot query consul for service 'consul': %w", err)
 			os.Exit(2)
 		}
-
-		log.Printf("Nodes: %+v\n", nodes)
+		for _, node := range nodes {
+			log.Println(node.Node.Address, node.Service.Port)
+		}
 		os.Exit(0)
 	}
 
