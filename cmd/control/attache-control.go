@@ -41,7 +41,7 @@ func (c *consulClientOptions) makeConsulClient() (*api.Client, error) {
 		}
 		tlsClientConf, err := api.SetupTLSConfig(&tlsConfig)
 		if err != nil {
-			return nil, fmt.Errorf("error creating tls client config for consul: %v", err)
+			return nil, fmt.Errorf("error creating tls client config for consul: %w", err)
 		}
 		config.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsClientConf,
@@ -132,7 +132,7 @@ func main() {
 		log.Println("Beginning Phil Test")
 		nodes, _, err := consulClient.Health().Service("consul", "", true, nil)
 		if err != nil {
-			log.Fatalf("cannot query consul for service 'consul': %w", err)
+			log.Fatalf("cannot query consul for service 'consul': %s", err)
 			os.Exit(2)
 		}
 		for _, node := range nodes {
