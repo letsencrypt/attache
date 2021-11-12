@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -15,7 +14,7 @@ import (
 )
 
 func main() {
-	log.Println("attache-check has started")
+	log.Println("Attache-Check has started")
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
 	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
@@ -33,8 +32,6 @@ func main() {
 
 	router := mux.NewRouter()
 	check := check.NewCheckClient(*redisNodeAddr, "")
-	nodes, _ := check.GetClusterNodes()
-	fmt.Println(nodes)
 	router.HandleFunc("/clusterinfo/state/ok", check.StateOkHandler)
 	router.HandleFunc("/clusterinfo/state/new", check.StateNewHandler)
 

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+
+	"github.com/letsencrypt/attache/src/check"
 )
 
 func execRedisCLI(command []string) error {
@@ -24,10 +26,30 @@ func execRedisCLI(command []string) error {
 }
 
 func makeClusterCreateOpts(addresses []string) []string {
-	var clusterCreateOpts []string
-	clusterCreateOpts = append(clusterCreateOpts, "--cluster", "create")
-	clusterCreateOpts = append(clusterCreateOpts, addresses...)
-	return append(clusterCreateOpts, "--cluster-yes", "--cluster-replicas", "0")
+	var opts []string
+	opts = append(opts, "--cluster", "create")
+	opts = append(opts, addresses...)
+	return append(opts, "--cluster-yes", "--cluster-replicas", "0")
+}
+
+func makeAddNewShardPrimaryOpts(newNodeAddr, destNodeAddr string) []string {
+	return []string{"--cluster", "add-node", newNodeAddr, destNodeAddr}
+}
+
+func makeClusterRebalanceSlotsOpts(newNodeAddr string) []string {
+	return []string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"}
+}
+
+func makeAddNewShardReplicaOpts(newNodeAddr, primaryAddr, primaryID string) []string {
+	return []string{
+		"--cluster",
+		"add-node",
+		newNodeAddr,
+		primaryAddr,
+		"--cluster-slave",
+		"--cluster-master-id",
+		primaryID,
+	}
 }
 
 func RedisCLICreateCluster(nodes []string) error {
@@ -40,22 +62,30 @@ func RedisCLICreateCluster(nodes []string) error {
 }
 
 func RedisCLIAddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
-	// redis-cli --cluster add-node newNodeAddr destNodeAddr
-	// redis-cli --cluster rebalance newNodeAddr --cluster-use-empty-masters
-	// err := execRedisCLI()
-	// if err != nil {
-	// 	return err
-	// }
+	err := execRedisCLI(makeAddNewShardPrimaryOpts(newNodeAddr, destNodeAddr))
+	if err != nil {
+		return err
+	}
+
+	err = execRedisCLI(makeClusterRebalanceSlotsOpts(newNodeAddr))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func RedisCLIAddNewShardReplica(newNodeAddr, destNodeAddr string) error {
-	// redis-cli --cluster add-node newNodeAddr destNodeAddr --cluster-slave --cluster-master-id destNodeAddr
-	// err := execRedisCLI()
-	// if err != nil {
-	// 	return err
-	// }
+	check := check.NewCheckClient(destNodeAddr, "")
+	primaryAddr, primaryID, err := check.GetPrimaryWithLeastReplicas()
+	if err != nil {
+		return err
+	}
+
+	err = execRedisCLI(makeAddNewShardReplicaOpts(newNodeAddr, primaryAddr, primaryID))
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
