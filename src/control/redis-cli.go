@@ -4,9 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	"github.com/hashicorp/consul/api"
-	"github.com/letsencrypt/attache/src/check"
 )
 
 func execRedisCLI(command []string) error {
@@ -33,14 +30,8 @@ func makeClusterCreateOpts(addresses []string) []string {
 	return append(clusterCreateOpts, "--cluster-yes", "--cluster-replicas", "0")
 }
 
-func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
-	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-	addresses, err := catalog.GetAddresses()
-	if err != nil {
-		return err
-	}
-
-	err = execRedisCLI(makeClusterCreateOpts(addresses))
+func RedisCLICreateCluster(nodes []string) error {
+	err := execRedisCLI(makeClusterCreateOpts(nodes[0:2]))
 	if err != nil {
 		return err
 	}
@@ -48,32 +39,23 @@ func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
 	return nil
 }
 
-// func RedisCLIJoinCluster(client *api.Client, awaitServiceName string) error {
-// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-// 	addresses, err := catalog.GetAddresses()
-// 	if err != nil {
-// 		return err
-// 	}
+func RedisCLIAddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
+	// redis-cli --cluster add-node newNodeAddr destNodeAddr
+	// redis-cli --cluster rebalance newNodeAddr --cluster-use-empty-masters
+	// err := execRedisCLI()
+	// if err != nil {
+	// 	return err
+	// }
 
-// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
-// 	if err != nil {
-// 		return err
-// 	}
+	return nil
+}
 
-// 	return nil
-// }
+func RedisCLIAddNewShardReplica(newNodeAddr, destNodeAddr string) error {
+	// redis-cli --cluster add-node newNodeAddr destNodeAddr --cluster-slave --cluster-master-id destNodeAddr
+	// err := execRedisCLI()
+	// if err != nil {
+	// 	return err
+	// }
 
-// func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
-// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-// 	addresses, err := catalog.GetAddresses()
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	return nil
-// }
+	return nil
+}

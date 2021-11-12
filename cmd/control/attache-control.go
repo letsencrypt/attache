@@ -147,38 +147,34 @@ func main() {
 	var createNewCluster bool
 	var addNodeAsPrimary bool
 	var addNodeAsReplica bool
-	var primaryNodesInDest []string
+	var nodesInDest []string
+	var nodesInAwait []string
+
 	var currAttempt int
 	ticks := time.Tick(*attemptToJoinEvery)
 	for range ticks {
 		currAttempt++
 
-		// TODO: Exit loop if some other node won the lock and formed a cluster
-		// with this node this will only happen on initial node creation and can
-		// be detected with a call to check.ClusterInfo.Ok
-
 		// Check the Consul service catalog for an existing Redis Cluster that
-		// we can join. We're limiting the scope of our search to nodes tagged
-		// as 'primary', in the `destServiceName` Consul service that are
-		// healthy according to Consul health checks.
-		destService := check.NewServiceCatalogClient(consulClient, *destServiceName, "primary", true)
-		primaryNodesInDest, err = destService.GetAddresses()
+		// we can join. We're limiting the scope of our search to nodes in the
+		// `destServiceName` Consul service that Consul considers healthy.
+		destService := check.NewConsulServiceClient(consulClient, *destServiceName, "", true)
+		nodesInDest, err = destService.GetNodeAddresses()
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Printf("found nodes %q in service %q\n", primaryNodesInDest, *destServiceName)
+		log.Printf("found nodes %q in service %q\n", nodesInDest, *destServiceName)
 
 		// If 0 existing nodes can be found with this criteria, we know that we
 		// need to initialize a new cluster.
-		if len(primaryNodesInDest) == 0 {
+		if len(nodesInDest) == 0 {
 			createNewCluster = true
 
 			// Check the Consul service catalog for other nodes that are waiting
 			// to form a cluster. We're limiting the scope of our search in the
-			// `awaitServiceName` Consul service that are healthy according to
-			// Consul health checks.
-			awaitService := check.NewServiceCatalogClient(consulClient, *awaitServiceName, "", true)
-			nodesInAwait, err := awaitService.GetAddresses()
+			// `awaitServiceName` Consul service that Consul considers healthy.
+			awaitService := check.NewConsulServiceClient(consulClient, *awaitServiceName, "", true)
+			nodesInAwait, err = awaitService.GetNodeAddresses()
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -195,14 +191,14 @@ func main() {
 			}
 			log.Printf("cannot initialize cluster, missing %d shard primary nodes\n", nodesMissing)
 
-		} else if len(primaryNodesInDest) < *shardPrimaryCount {
+		} else if len(nodesInDest) < *shardPrimaryCount {
 			// The current cluster has less than `shardPrimaryCount` shard
 			// primary nodes. This node should be added as a new primary and the
 			// existing cluster shardslots should be rebalanced.
 			addNodeAsPrimary = true
 			log.Println("adding this node as a new shard primary in the existing cluster")
 
-		} else if len(primaryNodesInDest) == *shardPrimaryCount {
+		} else if len(nodesInDest) == *shardPrimaryCount {
 			// All `shardPrimaryCount` shard primary nodes exist in the current
 			// cluster. This node should be added as a replica to the primary
 			// node with the least number of replicas.
@@ -255,7 +251,7 @@ func main() {
 		if createNewCluster {
 			log.Println("initializing a new redis cluster")
 
-			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
+			err := control.RedisCLICreateCluster(nodesInAwait)
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)
@@ -272,9 +268,8 @@ func main() {
 
 		if addNodeAsPrimary {
 			log.Printf("adding node %q as a new shard primary", *redisNodeAddr)
-			// redis-cli --cluster add-node newNodeAddr existingNodeAddr
-			// redis-cli --cluster rebalance newNodeAddr --cluster-use-empty-masters
-			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
+			log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, nodesInDest[0])
+			err := control.RedisCLIAddNewShardPrimary(*redisNodeAddr, nodesInDest[0])
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)
@@ -291,14 +286,8 @@ func main() {
 
 		if addNodeAsReplica {
 			log.Printf("adding node %q as a new shard replica", *redisNodeAddr)
-			log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, primaryNodesInDest[0])
-			// redis-cli --cluster add-node newNodeAddr existingNodeAddr
-
-			// Use check.ClusterCheck to fetch the shard primary with the least
-			// replicas and grab it's node ID
-
-			// redis-cli --cluster add-node newNodeAddr existingPrimaryNodeAddr --cluster-slave --cluster-master-id existingPrimaryNodeID
-			err := control.RedisCLICreateCluster(consulClient, *awaitServiceName)
+			log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, nodesInDest[0])
+			err := control.RedisCLIAddNewShardReplica(*redisNodeAddr, nodesInDest[0])
 			if err != nil {
 				close(doneChan)
 				log.Fatalln(err)
