@@ -1,7 +1,9 @@
 package check
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -14,22 +16,37 @@ type Client struct {
 	client   *redis.Client
 }
 
-// type redisClusterNodes []struct {
-// 	NodeID:
-// }
+type redisClusterNodes []struct {
+	nodeID   string
+	nodeAddr string
+	role     string
+}
 
-// func (h *Client) GetClusterNodes() (*redisClusterNodes, error) {
-// 	nodes := h.client.ClusterNodes()
-// 	// info = strings.ReplaceAll(info, ":", ": ")
+func (h *Client) GetClusterNodes() (*redisClusterNodes, error) {
+	output, err := h.client.ClusterNodes().Result()
+	if err != nil {
+		return nil, err
+	}
+	output = strings.ReplaceAll(output, "connected\n", "connected 0-0\n")
+	output = strings.ReplaceAll(output, "myself,master", "master")
+	output = strings.ReplaceAll(output, "myself,slave", "slave")
 
-// 	// var clusterInfo RedisClusterInfo
-// 	// err = yaml.Unmarshal([]byte(info), &clusterInfo)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
+	var nodes *redisClusterNodes
+	reader := csv.NewReader(strings.NewReader(output))
+	reader.Comma = ' '
+	for {
+		record, err := reader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
 
-// 	return nodes, nil
-// }
+		fmt.Println(record[0], record[1], record[2])
+	}
+	return nodes, nil
+}
 
 func (h *Client) StateOkHandler(w http.ResponseWriter, r *http.Request) {
 	clusterInfo, err := h.getClusterInfo()

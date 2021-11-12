@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -32,6 +33,8 @@ func main() {
 
 	router := mux.NewRouter()
 	check := check.NewCheckClient(*redisNodeAddr, "")
+	nodes, _ := check.GetClusterNodes()
+	fmt.Println(nodes)
 	router.HandleFunc("/clusterinfo/state/ok", check.StateOkHandler)
 	router.HandleFunc("/clusterinfo/state/new", check.StateNewHandler)
 
