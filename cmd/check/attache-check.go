@@ -31,7 +31,7 @@ func main() {
 	}
 
 	router := mux.NewRouter()
-	check := check.NewCheckClient(*redisNodeAddr, "")
+	check := check.NewRedisClient(*redisNodeAddr, "")
 	router.HandleFunc("/clusterinfo/state/ok", check.StateOkHandler)
 	router.HandleFunc("/clusterinfo/state/new", check.StateNewHandler)
 

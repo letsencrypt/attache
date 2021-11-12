@@ -53,7 +53,7 @@ func makeAddNewShardReplicaOpts(newNodeAddr, primaryAddr, primaryID string) []st
 }
 
 func RedisCLICreateCluster(nodes []string) error {
-	err := execRedisCLI(makeClusterCreateOpts(nodes[0:2]))
+	err := execRedisCLI(makeClusterCreateOpts(nodes[0:3]))
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func RedisCLIAddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
 }
 
 func RedisCLIAddNewShardReplica(newNodeAddr, destNodeAddr string) error {
-	check := check.NewCheckClient(destNodeAddr, "")
+	check := check.NewRedisClient(destNodeAddr, "")
 	primaryAddr, primaryID, err := check.GetPrimaryWithLeastReplicas()
 	if err != nil {
 		return err

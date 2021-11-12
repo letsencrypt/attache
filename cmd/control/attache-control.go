@@ -58,8 +58,8 @@ func main() {
 	log.Println("attache-control has started")
 	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
 	shardPrimaryCount := flag.Int("shard-primary-count", 0, "Total number of expected Redis shard primary nodes")
-	attemptToJoinEvery := flag.Duration("attempt-to-join-every", 5*time.Second, "Duration to wait between attempts to join or create a cluster")
-	timesToAttempt := flag.Int("times-to-attempt-join", 20, "Number of times to attempt joining or creating a cluster before exiting")
+	attemptToJoinEvery := flag.Duration("attempt-to-join-every", 20*time.Second, "Duration to wait between attempts to join or create a cluster")
+	timesToAttempt := flag.Int("times-to-attempt-join", 10, "Number of times to attempt joining or creating a cluster before exiting")
 	destServiceName := flag.String("dest-service-name", "", "Consul Service for any existing Redis Cluster Nodes")
 	awaitServiceName := flag.String("await-service-name", "", "Consul Service for any newly created Redis Cluster Nodes")
 
@@ -155,6 +155,16 @@ func main() {
 	for range ticks {
 		currAttempt++
 
+		redisClient := check.NewRedisClient(*redisNodeAddr, "")
+		nodeIsNew, err := redisClient.StateNewCheck()
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if !nodeIsNew {
+			log.Print("Node has already joined a cluster")
+			os.Exit(0)
+		}
+
 		// Check the Consul service catalog for an existing Redis Cluster that
 		// we can join. We're limiting the scope of our search to nodes in the
 		// `destServiceName` Consul service that Consul considers healthy.
@@ -184,8 +194,8 @@ func main() {
 			// nodes that we expect in said cluster have finished starting up
 			// and reside in the `awaitServiceName` Consul service.
 			nodesMissing := *shardPrimaryCount - len(nodesInAwait)
-			if nodesMissing == 0 {
-				log.Println("all expected shard primary nodes are ready, attempting to initialize cluster")
+			if nodesMissing <= 0 {
+				log.Println("attempting to initialize a new cluster")
 				break
 
 			}
@@ -197,18 +207,19 @@ func main() {
 			// existing cluster shardslots should be rebalanced.
 			addNodeAsPrimary = true
 			log.Println("adding this node as a new shard primary in the existing cluster")
+			break
 
-		} else if len(nodesInDest) == *shardPrimaryCount {
+		} else if len(nodesInDest) >= *shardPrimaryCount {
 			// All `shardPrimaryCount` shard primary nodes exist in the current
 			// cluster. This node should be added as a replica to the primary
 			// node with the least number of replicas.
 			addNodeAsReplica = true
 			log.Println("adding this node as a replica in the existing cluster")
+			break
 		}
 
 		if currAttempt == *timesToAttempt {
-			log.Println("failed to join or initialize a cluster during the time permitted")
-			break
+			log.Fatalln("failed to join or initialize a cluster during the time permitted")
 		}
 		log.Printf("continuing to wait, %d attempts remain\n", (*timesToAttempt - currAttempt))
 	}
@@ -303,6 +314,6 @@ func main() {
 		}
 	} else {
 		log.Println("leader already chosen")
-		os.Exit(0)
+		os.Exit(2)
 	}
 }
