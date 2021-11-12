@@ -55,66 +55,55 @@ func (c *consulClientOptions) makeConsulClient() (*api.Client, error) {
 }
 
 func main() {
-	log.Println("Attache has started")
-
-	redisNodeAddr := flag.String(
-		"redis-node-addr", "", "Address of the localhost Redis server (example: '127.0.0.1:6049')",
-	)
-
-	shardPrimaryCount := flag.Int(
-		"shard-primary-count", 0, "Total number of expected Redis shard primary nodes",
-	)
-
-	attemptToJoinEvery := flag.Duration(
-		"attempt-to-join-every",
-		5*time.Second,
-		"Duration to wait between attempts to join or create a cluster",
-	)
-
-	timesToAttempt := flag.Int(
-		"times-to-attempt-join",
-		20,
-		"Number of times to attempt joining or creating a cluster before exiting",
-	)
-
-	destServiceName := flag.String(
-		"dest-service-name",
-		"",
-		"Name of the Consul Service containing nodes that this Redis server should attempt to cluster with",
-	)
-
-	awaitServiceName := flag.String(
-		"await-service-name",
-		"",
-		"Name of the Consul Service that this node will idle in until it has joined or created a cluster",
-	)
+	log.Println("attache-control has started")
+	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
+	shardPrimaryCount := flag.Int("shard-primary-count", 0, "Total number of expected Redis shard primary nodes")
+	attemptToJoinEvery := flag.Duration("attempt-to-join-every", 5*time.Second, "Duration to wait between attempts to join or create a cluster")
+	timesToAttempt := flag.Int("times-to-attempt-join", 20, "Number of times to attempt joining or creating a cluster before exiting")
+	destServiceName := flag.String("dest-service-name", "", "Consul Service for any existing Redis Cluster Nodes")
+	awaitServiceName := flag.String("await-service-name", "", "Consul Service for any newly created Redis Cluster Nodes")
 
 	// Consul Flags
-	consulDC := flag.String("consul-dc", "", "Path to the Consul CA cert file")
-	consulAddr := flag.String(
-		"consul-addr",
-		"",
-		"Address of the localhost Consul client with scheme (example: '127.0.0.1:8501')",
-	)
-	consulACLToken := flag.String(
-		"consul-acl-token",
-		"",
-		"The contents of the Consul ACL token this client should use",
-	)
-	consulTLSEnable := flag.Bool("consul-tls-enable", false, "Use TLS for the Consul client connection")
-	consulCACert := flag.String("consul-tls-ca-cert", "", "Path to the Consul CA cert file")
-	consulCert := flag.String("consul-tls-cert", "", "Path to the Consul client cert file")
-	consulKey := flag.String("consul-tls-key", "", "Path to the Consul client key file")
+	consulDC := flag.String("consul-dc", "", "Consul client datacenter")
+	consulAddr := flag.String("consul-addr", "", "Consul client address")
+	consulACLToken := flag.String("consul-acl-token", "", "Consul client ACL token")
+	consulEnableTLS := flag.Bool("consul-tls-enable", false, "Enable TLS for the Consul client")
+	consulCACert := flag.String("consul-tls-ca-cert", "", "Consul client CA certificate file")
+	consulCert := flag.String("consul-tls-cert", "", "Consul client certificate file")
+	consulKey := flag.String("consul-tls-key", "", "Consul client key file")
 	philTest := flag.Bool("phil-test", false, "This is for Phil!")
 
-	log.Println("Parsing flags")
+	log.Println("Parsing configuration flags")
 	flag.Parse()
+
+	if *consulDC == "" {
+		log.Fatalln("Missing required opt: 'consul-dc")
+	}
+
+	if *consulAddr == "" {
+		log.Fatalln("Missing required opt: 'consul-addr")
+	}
+
+	if *consulEnableTLS {
+
+		if *consulCACert == "" {
+			log.Fatalln("Missing required opt: 'consul-tls-ca-cert")
+		}
+
+		if *consulCert == "" {
+			log.Fatalln("Missing required opt: 'consul-tls-cert")
+		}
+
+		if *consulKey == "" {
+			log.Fatalln("Missing required opt: 'consul-tls-key")
+		}
+	}
 
 	consulClientOpts := consulClientOptions{
 		dc:        *consulDC,
 		address:   *consulAddr,
 		aclToken:  *consulACLToken,
-		tlsEnable: *consulTLSEnable,
+		tlsEnable: *consulEnableTLS,
 		tlsCACert: *consulCACert,
 		tlsCert:   *consulCert,
 		tlsKey:    *consulKey,

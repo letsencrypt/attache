@@ -14,9 +14,12 @@ import (
 )
 
 func main() {
-	redisNodeAddr := flag.String("redis-node-addr", "", "Address of the Redis node to be monitored (example: '127.0.0.1:6049')")
-	checkServAddr := flag.String("check-serv-addr", "", "Address the check server should listen on (example: '127.0.0.0:8080')")
-	shutdownWait := flag.Duration("shutdown-wait", time.Second*5, "duration to wait for existing connections to finish (example: '1s', '1m', '1h')")
+	log.Println("attache-check has started")
+	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on")
+	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
+	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
+
+	log.Println("Parsing configuration flags")
 	flag.Parse()
 
 	if *checkServAddr == "" {
@@ -50,7 +53,7 @@ func main() {
 	signal.Notify(catchSignals, os.Interrupt)
 	<-catchSignals
 
-	ctx, cancel := context.WithTimeout(context.Background(), *shutdownWait)
+	ctx, cancel := context.WithTimeout(context.Background(), *shutdownGrace)
 	defer cancel()
 	server.Shutdown(ctx)
 	log.Println("shutting down")
