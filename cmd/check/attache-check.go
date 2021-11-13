@@ -14,20 +14,20 @@ import (
 )
 
 func main() {
-	log.Println("Attache-Check has started")
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
 	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
 
-	log.Println("Parsing configuration flags")
+	log.Print("Starting...")
+	log.Print("Parsing configuration flags")
 	flag.Parse()
 
 	if *checkServAddr == "" {
-		log.Fatalln("Missing required opt 'check-serv-addr'")
+		log.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
 	if *redisNodeAddr == "" {
-		log.Fatalln("Missing required opt 'redis-node-addr'")
+		log.Fatal("Missing required opt 'redis-node-addr'")
 	}
 
 	router := mux.NewRouter()
@@ -45,7 +45,7 @@ func main() {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			log.Println(err)
+			log.Print(err)
 		}
 	}()
 
@@ -56,6 +56,6 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), *shutdownGrace)
 	defer cancel()
 	server.Shutdown(ctx)
-	log.Println("shutting down")
+	log.Print("shutting down")
 	os.Exit(0)
 }
