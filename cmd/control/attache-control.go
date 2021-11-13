@@ -175,82 +175,92 @@ func main() {
 		if nodeHasLock {
 			log.Print("aquired lock")
 
-			// Spin-off a goroutine to periodically renew our leader lock until our
-			// work is complete.
+			// Spin-off a goroutine to periodically renew our leader lock until
+			// our work is complete.
 			doneChan := make(chan struct{})
 			go session.Renew(doneChan)
 
-			// Check the Consul service catalog for an existing Redis Cluster that
-			// we can join. We're limiting the scope of our search to nodes in the
-			// `destServiceName` Consul service that Consul considers healthy.
+			// Check the Consul service catalog for an existing Redis Cluster
+			// that we can join. We're limiting the scope of our search to nodes
+			// in the `destServiceName` Consul service that Consul considers
+			// healthy.
 			destService := check.NewConsulServiceClient(consulClient, *destServiceName, "", true)
 			nodesInDest, err = destService.GetNodeAddresses()
 			if err != nil {
-				log.Print(err)
+				close(doneChan)
+				session.Cleanup()
+				log.Fatal(err)
 			}
 			log.Printf("found nodes %q in service %q", nodesInDest, *destServiceName)
 
-			// If 0 existing nodes can be found with this criteria, we know that we
-			// need to initialize a new cluster.
+			// If 0 existing nodes can be found with this criteria, we know that
+			// we need to initialize a new cluster.
 			if len(nodesInDest) == 0 {
-				// Check the Consul service catalog for other nodes that are waiting
-				// to form a cluster. We're limiting the scope of our search to
-				// nodes in the `awaitServiceName` Consul service that Consul
-				// considers healthy.
+				// Check the Consul service catalog for other nodes that are
+				// waiting to form a cluster. We're limiting the scope of our
+				// search to nodes in the `awaitServiceName` Consul service that
+				// Consul considers healthy.
 				awaitService := check.NewConsulServiceClient(consulClient, *awaitServiceName, "", true)
 				nodesInAwait, err = awaitService.GetNodeAddresses()
 				if err != nil {
-					log.Print(err)
+					log.Fatal(err)
 				}
 				log.Printf("found nodes %q in service %q", nodesInAwait, *awaitServiceName)
 
-				// We should only attempt to initialize a new cluster if all of the
-				// nodes that we expect in said cluster have finished starting up
-				// and reside in the `awaitServiceName` Consul service.
+				// We should only attempt to initialize a new cluster if all of
+				// the nodes that we expect in said cluster have finished
+				// starting up and reside in the `awaitServiceName` Consul
+				// service.
 				nodesMissing := *shardPrimaryCount - len(nodesInAwait)
 				if nodesMissing <= 0 {
 					log.Printf("creating new cluster with nodes %q", nodesInAwait[0:*shardPrimaryCount])
 
 					err := control.RedisCLICreateCluster(nodesInAwait[0:*shardPrimaryCount])
 					if err != nil {
-						log.Print(err)
+						close(doneChan)
+						session.Cleanup()
+						log.Fatal(err)
 					} else {
 						completed = true
 					}
 
 				}
-				log.Printf("cannot initialize cluster, missing %d shard primary nodes", nodesMissing)
 
 			} else if len(nodesInDest) < *shardPrimaryCount {
 				// The current cluster has less than `shardPrimaryCount` shard
-				// primary nodes. This node should be added as a new primary and the
-				// existing cluster shardslots should be rebalanced.
+				// primary nodes. This node should be added as a new primary and
+				// the existing cluster shardslots should be rebalanced.
 				log.Printf("adding node %q as a new shard primary", *redisNodeAddr)
 				log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, nodesInDest[0])
 
 				err := control.RedisCLIAddNewShardPrimary(*redisNodeAddr, nodesInDest[0])
 				if err != nil {
-					log.Print(err)
+					log.Print("issue encountered, releasing lock")
+					close(doneChan)
+					session.Cleanup()
+					log.Fatal(err)
 				} else {
 					completed = true
 				}
 
 			} else if len(nodesInDest) >= *shardPrimaryCount {
-				// All `shardPrimaryCount` shard primary nodes exist in the current
-				// cluster. This node should be added as a replica to the primary
-				// node with the least number of replicas.
+				// All `shardPrimaryCount` shard primary nodes exist in the
+				// current cluster. This node should be added as a replica to
+				// the primary node with the least number of replicas.
 				log.Printf("adding node %q as a new shard replica", *redisNodeAddr)
 				log.Printf("attempting to join %q to the cluster that %q belongs to", *redisNodeAddr, nodesInDest[0])
 
 				err := control.RedisCLIAddNewShardReplica(*redisNodeAddr, nodesInDest[0])
 				if err != nil {
-					log.Print(err)
+					log.Print("issue encountered, releasing lock")
+					close(doneChan)
+					session.Cleanup()
+					log.Fatal(err)
 				} else {
 					completed = true
 				}
 
 			}
-
 			// Close our channel and cleanup our Consul session so that other
 			// attache nodes can pickup the lock to complete their work.
 			log.Print("releasing lock")
@@ -270,9 +280,12 @@ func main() {
 			log.Printf("continuing to wait, %d attempts remain", (*timesToAttempt - currAttempt))
 		}
 	}
+
+	// TODO: Remove once https://github.com/hashicorp/nomad/issues/10058 has
+	// been solved.
 	duration := time.Since(start)
-	if duration < time.Second*10 {
-		time.Sleep(time.Second*10 - duration)
+	if duration < time.Minute*10 {
+		time.Sleep(time.Minute*10 - duration)
 	}
 	log.Print("exiting...")
 }
