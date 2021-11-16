@@ -67,7 +67,7 @@ func (l *Lock) Renew(doneChan <-chan struct{}) error {
 func (l *Lock) Cleanup() error {
 	_, err := l.client.Session().Destroy(l.sessionID, nil)
 	if err != nil {
-		return fmt.Errorf("cannot delete key %s: %s", l.key, err)
+		return fmt.Errorf("cannot delete key %q: %s", l.key, err)
 	}
 	return nil
 }
