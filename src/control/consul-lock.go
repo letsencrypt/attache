@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/api"
+	logger "github.com/sirupsen/logrus"
 )
 
 type Lock struct {
@@ -65,9 +66,14 @@ func (l *Lock) Renew(doneChan <-chan struct{}) error {
 // Cleanup destroys the session by triggering the behavior. This deletes the
 // configured key as well.
 func (l *Lock) Cleanup() error {
-	_, err := l.client.Session().Destroy(l.sessionID, nil)
+	_, err := l.client.KV().Delete(l.key, nil)
 	if err != nil {
-		return fmt.Errorf("cannot delete key %q: %s", l.key, err)
+		logger.Error("cannot delete lock key %q: %s", l.key, err)
+	}
+
+	_, err = l.client.Session().Destroy(l.sessionID, nil)
+	if err != nil {
+		return fmt.Errorf("cannot cleanup session %q: %s", l.sessionID, err)
 	}
 	return nil
 }
