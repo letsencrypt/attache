@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/hashicorp/consul/api"
 	"github.com/letsencrypt/attache/src/check"
 )
 
@@ -27,20 +26,34 @@ func execRedisCLI(command []string) error {
 }
 
 func makeClusterCreateOpts(addresses []string) []string {
-	var clusterCreateOpts []string
-	clusterCreateOpts = append(clusterCreateOpts, "--cluster", "create")
-	clusterCreateOpts = append(clusterCreateOpts, addresses...)
-	return append(clusterCreateOpts, "--cluster-yes", "--cluster-replicas", "0")
+	var opts []string
+	opts = append(opts, "--cluster", "create")
+	opts = append(opts, addresses...)
+	return append(opts, "--cluster-yes", "--cluster-replicas", "0")
 }
 
-func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
-	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-	addresses, err := catalog.GetAddresses()
-	if err != nil {
-		return err
-	}
+func makeAddNewShardPrimaryOpts(newNodeAddr, destNodeAddr string) []string {
+	return []string{"--cluster", "add-node", newNodeAddr, destNodeAddr}
+}
 
-	err = execRedisCLI(makeClusterCreateOpts(addresses))
+func makeClusterRebalanceSlotsOpts(newNodeAddr string) []string {
+	return []string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"}
+}
+
+func makeAddNewShardReplicaOpts(newNodeAddr, primaryAddr, primaryID string) []string {
+	return []string{
+		"--cluster",
+		"add-node",
+		newNodeAddr,
+		primaryAddr,
+		"--cluster-slave",
+		"--cluster-master-id",
+		primaryID,
+	}
+}
+
+func RedisCLICreateCluster(nodes []string) error {
+	err := execRedisCLI(makeClusterCreateOpts(nodes))
 	if err != nil {
 		return err
 	}
@@ -48,32 +61,31 @@ func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
 	return nil
 }
 
-// func RedisCLIJoinCluster(client *api.Client, awaitServiceName string) error {
-// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-// 	addresses, err := catalog.GetAddresses()
-// 	if err != nil {
-// 		return err
-// 	}
+func RedisCLIAddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
+	err := execRedisCLI(makeAddNewShardPrimaryOpts(newNodeAddr, destNodeAddr))
+	if err != nil {
+		return err
+	}
 
-// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
-// 	if err != nil {
-// 		return err
-// 	}
+	err = execRedisCLI(makeClusterRebalanceSlotsOpts(newNodeAddr))
+	if err != nil {
+		return err
+	}
 
-// 	return nil
-// }
+	return nil
+}
 
-// func RedisCLICreateCluster(client *api.Client, awaitServiceName string) error {
-// 	catalog := check.NewServiceCatalogClient(client, awaitServiceName, "primary", true)
-// 	addresses, err := catalog.GetAddresses()
-// 	if err != nil {
-// 		return err
-// 	}
+func RedisCLIAddNewShardReplica(newNodeAddr, destNodeAddr string) error {
+	check := check.NewRedisClient(destNodeAddr, "")
+	primaryAddr, primaryID, err := check.GetPrimaryWithLeastReplicas()
+	if err != nil {
+		return err
+	}
 
-// 	err = execRedisCLI(makeClusterCreateOpts(addresses))
-// 	if err != nil {
-// 		return err
-// 	}
+	err = execRedisCLI(makeAddNewShardReplicaOpts(newNodeAddr, primaryAddr, primaryID))
+	if err != nil {
+		return err
+	}
 
-// 	return nil
-// }
+	return nil
+}
