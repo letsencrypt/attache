@@ -11,14 +11,14 @@ locals {
 
   // primary-count is the count of Redis Shard Primary Nodes that should exist
   // in the resulting Redis Cluster.
-  primary-count = 3
+  primary-count = 4
 
   // replica-count is the count of Redis Shard Replica Nodes that should exist
   // in the resulting Redis Cluster.
   replica-count = 3
 
-  // redis-config-template is the Consul Template used to produce the
-  // config file for each Redis Node.
+  // redis-config-template is the Consul Template used to produce the config
+  // file for each Redis Node.
   redis-config-template = <<-EOF
     bind {{ env "NOMAD_IP_db" }}
     port {{ env "NOMAD_PORT_db" }}
@@ -118,6 +118,7 @@ job "redis-cluster" {
       }
       driver = "raw_exec"
       config {
+        // command is the path to the built attache-control binary.
         command = "$${HOME}/repos/attache/attache-control"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
@@ -135,6 +136,7 @@ job "redis-cluster" {
       }
       driver = "raw_exec"
       config {
+        // command is the path to the built attache-check binary.
         command = "$${HOME}/repos/attache/attache-check"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",

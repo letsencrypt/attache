@@ -10,6 +10,10 @@ Nomad and Consul.
 #### To Do
 - Drain and failover and FORGET an existing primary node
 - Remove and FORGET an existing replica node
+- Redis ACL
+- Redis Password
+- Redis mTLS
+- Redis Static ClusterHub Port selection (from Nomad Job Specification)
 
 ### `attache-check`
 A sidecar that servers an HTTP API that allows Consul to track the health of
@@ -21,11 +25,11 @@ once they've joined a cluster.
 ```shell
 Usage of ./attache-check:
   -check-serv-addr string
-        address this utility should listen on
+      address this utility should listen on
   -redis-node-addr string
-        redis-server listening address
+      redis-server listening address
   -shutdown-grace duration
-        duration to wait before shutting down (e.g. '1s') (default 5s)
+      duration to wait before shutting down (e.g. '1s') (default 5s)
 ```
 
 ### `attache-control`
@@ -40,35 +44,37 @@ Redis Nodes (in the Await Consul Service) to do so.
 $ attache-control -help
 Usage of ./attache-control:
   -attempt-interval duration
-        Duration to wait between attempts to join or create a cluster (default 3s)
+    	Duration to wait between attempts to join or create a cluster (default 3s)
   -attempt-limit int
-        Number of times to attempt joining or creating a cluster before exiting (default 20)
+    	Number of times to attempt joining or creating a cluster before exiting (default 20)
   -await-service-name string
-        Consul Service for any newly created Redis Cluster Nodes
+    	Consul Service for any newly created Redis Cluster Nodes
   -consul-acl-token string
-        Consul client ACL token
+    	Consul client ACL token
   -consul-addr string
-        Consul client address (default "127.0.0.1:8500")
+    	Consul client address (default "127.0.0.1:8500")
   -consul-dc string
-        Consul client datacenter (default "dev-general")
+    	Consul client datacenter (default "dev-general")
   -consul-tls-ca-cert string
-        Consul client CA certificate file
+    	Consul client CA certificate file
   -consul-tls-cert string
-        Consul client certificate file
+    	Consul client certificate file
   -consul-tls-enable
-        Enable TLS for the Consul client
+    	Enable TLS for the Consul client
   -consul-tls-key string
-        Consul client key file
+    	Consul client key file
   -dest-service-name string
-        Consul Service for any existing Redis Cluster Nodes
+    	Consul Service for any existing Redis Cluster Nodes
+  -lock-kv-path string
+    	KV path used by Consul to aquire a distributed lock for operations (default "service/attache/leader")
   -log-level string
-        Set the log level (default "info")
+    	Set the log level (default "info")
   -redis-node-addr string
-        redis-server listening address
+    	redis-server listening address
   -redis-primary-count int
-        Total number of expected Redis shard primary nodes
+    	Total number of expected Redis shard primary nodes
   -redis-replica-count int
-        Total number of expected Redis shard replica nodes
+    	Total number of expected Redis shard replica nodes
 ```
 
 ### Running the Example Nomad Job
@@ -80,7 +86,7 @@ Start the Consul server in `dev` mode:
 $ consul agent -dev -datacenter dev-general -log-level ERROR
 ```
 
-Start the Consul server in `dev` mode:
+Start the Nomad server in `dev` mode:
 ```shell
 $ sudo nomad agent -dev -bind 0.0.0.0 -log-level ERROR -dc dev-general
 ```

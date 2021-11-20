@@ -39,6 +39,10 @@ tags
 .vscode/*
 .hierarchy/
 .softhsm-tokens/
+
+# Attache
 attache-check
 attache-control
+!attache-control/
+!attache-check/
 
