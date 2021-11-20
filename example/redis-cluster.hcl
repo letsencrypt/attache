@@ -11,7 +11,7 @@ locals {
 
   // primary-count is the count of Redis Shard Primary Nodes that should exist
   // in the resulting Redis Cluster.
-  primary-count = 4
+  primary-count = 3
 
   // replica-count is the count of Redis Shard Replica Nodes that should exist
   // in the resulting Redis Cluster.

@@ -121,10 +121,13 @@ type redisClusterNode struct {
 
 func parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly bool, result string) ([]redisClusterNode, error) {
 	fmt.Println(result)
-	// Replica nodes are missing the slots column, so we can just add one to
-	// make the number of values per row equal and avoid ignoring all
-	// `csv.ErrFieldCount`.
-	result = strings.ReplaceAll(result, "connected\n", "connected 0-0\n")
+	// Remove the slots column to make the number of values per row equal and
+	// avoid ignoring all `csv.ErrFieldCount`.
+	output := strings.Split(result, "\n")
+	for i, line := range output {
+		output[i] = strings.SplitAfter(line, "connected")[0]
+	}
+	result = strings.Join(output, "\n")
 
 	// Replacing myself,<role> to make `role` more consistent.
 	result = strings.ReplaceAll(result, "myself,master", "master")

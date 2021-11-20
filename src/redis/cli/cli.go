@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"time"
 
 	"github.com/letsencrypt/attache/src/redis/client"
 )
@@ -42,7 +43,24 @@ func AddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
 	if err != nil {
 		return err
 	}
-	return execute([]string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"})
+
+	// Occasionally a cluster won't be ready for a shard slot rebalance
+	// immediately after meeting a new primary node because gossip about this
+	// new master hasn't propogated yet. This should be reattempted a few times.
+	var attempts int
+	var ticks = time.Tick(5 * time.Second)
+	for range ticks {
+		attempts++
+		execute([]string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"})
+		if err != nil {
+			if attempts == 5 {
+				return err
+			}
+			continue
+		}
+		break
+	}
+	return nil
 }
 
 func AddNewShardReplica(newNodeAddr, destNodeAddr string) error {
