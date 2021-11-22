@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -34,7 +33,6 @@ func (h *Client) StateNewCheck() (bool, error) {
 }
 
 func (h *Client) GetPrimaryWithLeastReplicas() (string, string, error) {
-	fmt.Print("here")
 	nodes, err := h.getClusterNodes(true, false, false)
 	if err != nil {
 		return "", "", err
@@ -120,7 +118,6 @@ type redisClusterNode struct {
 }
 
 func parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly bool, result string) ([]redisClusterNode, error) {
-	fmt.Println(result)
 	// Remove the slots column to make the number of values per row equal and
 	// avoid ignoring all `csv.ErrFieldCount`.
 	output := strings.Split(result, "\n")
