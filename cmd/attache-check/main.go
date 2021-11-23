@@ -1,0 +1,81 @@
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/gorilla/mux"
+	redis "github.com/letsencrypt/attache/src/redis/client"
+	logger "github.com/sirupsen/logrus"
+)
+
+// CheckHandler is a wrapper around an inner redis.Client.
+type CheckHandler struct {
+	redis.Client
+}
+
+func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
+	clusterInfo, err := h.GetClusterInfo()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.NodeAddr, err)))
+	} else if clusterInfo.State == "ok" {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(clusterInfo.State))
+	} else {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		w.Write([]byte(clusterInfo.State))
+	}
+}
+
+func main() {
+	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on (e.g. 127.0.0.1:8080)")
+	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
+	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
+
+	logger.Infof("starting %s", os.Args[0])
+	flag.Parse()
+
+	if *checkServAddr == "" {
+		logger.Fatal("Missing required opt 'check-serv-addr'")
+	}
+
+	if *redisNodeAddr == "" {
+		logger.Fatal("Missing required opt 'redis-node-addr'")
+	}
+
+	router := mux.NewRouter()
+	redisClient := redis.New(*redisNodeAddr, "")
+	handler := CheckHandler{*redisClient}
+	router.HandleFunc("/clusterinfo/state/ok", handler.StateOk)
+
+	server := &http.Server{
+		Addr:         *checkServAddr,
+		WriteTimeout: time.Second * 15,
+		ReadTimeout:  time.Second * 15,
+		IdleTimeout:  time.Second * 60,
+		Handler:      router,
+	}
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			logger.Error(err)
+		}
+	}()
+
+	catchSignals := make(chan os.Signal, 1)
+	signal.Notify(catchSignals, os.Interrupt)
+	logger.Infof("listening on %s", *checkServAddr)
+	<-catchSignals
+
+	ctx, cancel := context.WithTimeout(context.Background(), *shutdownGrace)
+	defer cancel()
+	server.Shutdown(ctx)
+	logger.Info("shutting down")
+	os.Exit(0)
+}
