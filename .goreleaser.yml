@@ -1,0 +1,96 @@
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - &build
+    id: "attache-check-build"
+    binary: "attache-check"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "6"
+      - "7"
+    main: ./cmd/attache-check
+
+  - <<: *build
+    id: "attache-control-build"
+    binary: "attache-control"
+    main: ./cmd/attache-control
+
+archives:
+- replacements:
+    darwin: Darwin
+    linux: Linux
+    windows: Windows
+    "386": i386
+    amd64: x86_64
+  allow_different_binary_count: true
+
+checksum:
+  name_template: 'checksums.txt'
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+dockers:
+  - id: "attache-check-docker"
+    ids:
+      - "attache-check-build"
+    image_templates:
+      - "ghcr.io/letsencrypt/attache-check:{{ .Tag }}"
+      - "ghcr.io/letsencrypt/attache-check:v{{ .Major }}"
+      - "ghcr.io/letsencrypt/attache-check:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/letsencrypt/attache-check:latest"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title=attache-check"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--build-arg=BINARY_NAME=attache-check"
+    dockerfile: Dockerfile
+  - id: "attache-control-docker"
+    ids:
+      - "attache-control-build"
+    image_templates:
+      - "ghcr.io/letsencrypt/attache-control:{{ .Tag }}"
+      - "ghcr.io/letsencrypt/attache-control:v{{ .Major }}"
+      - "ghcr.io/letsencrypt/attache-control:v{{ .Major }}.{{ .Minor }}"
+      - "ghcr.io/letsencrypt/attache-control:latest"
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.title=attache-control"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--build-arg=BINARY_NAME=attache-control"
+    dockerfile: Dockerfile
+
+nfpms:
+  - id: attache-nfpm
+    package_name: attache
+    builds:
+      - attache-check-build
+      - attache-control-build
+    maintainer: Let's Encrypt <opensource@letsencrypt.org>
+    description: A sidecar that allows for effortless scaling of Redis Clusters using Hashicorp Nomad and Consul.
+    homepage: https://github.com/letsencrypt/attache
+    formats:
+    - deb
+    - rpm
+    - apk
