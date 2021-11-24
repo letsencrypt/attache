@@ -51,7 +51,7 @@ func AddNewShardPrimary(newNodeAddr, destNodeAddr string) error {
 	var ticks = time.Tick(5 * time.Second)
 	for range ticks {
 		attempts++
-		execute([]string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"})
+		err = execute([]string{"--cluster", "rebalance", newNodeAddr, "--cluster-use-empty-masters"})
 		if err != nil {
 			if attempts == 5 {
 				return err
