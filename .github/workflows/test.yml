@@ -26,8 +26,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.29
+      
+      - name: go coverage
+        run: |
+          go test -mod=readonly -v -race -covermode=atomic -coverprofile=coverage.out ./...
+
       - name: Test goreleaser
         uses: goreleaser/goreleaser-action@v2
         with:
           version: latest
           args: release --rm-dist --skip-publish
+
+      - uses: codecov/codecov-action@v2
+        if: success()
+        with:
+          file: ./coverage.out
+          flags: attache
+          name: attache
