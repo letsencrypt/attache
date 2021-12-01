@@ -23,13 +23,13 @@ func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 	clusterInfo, err := h.GetClusterInfo()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.NodeAddr, err)))
+		_, _ = w.Write([]byte(fmt.Sprintf("Unable to connect to node %q: %s", h.NodeAddr, err)))
 	} else if clusterInfo.State == "ok" {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(clusterInfo.State))
+		_, _ = w.Write([]byte(clusterInfo.State))
 	} else {
 		w.WriteHeader(http.StatusServiceUnavailable)
-		w.Write([]byte(clusterInfo.State))
+		_, _ = w.Write([]byte(clusterInfo.State))
 	}
 }
 
@@ -75,7 +75,7 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), *shutdownGrace)
 	defer cancel()
-	server.Shutdown(ctx)
+	_ = server.Shutdown(ctx)
 	logger.Info("shutting down")
 	os.Exit(0)
 }
