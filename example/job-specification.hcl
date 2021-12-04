@@ -20,12 +20,43 @@ locals {
   // redis-config-template is the Consul Template used to produce the config
   // file for each Redis Node.
   redis-config-template = <<-EOF
-    bind {{ env "NOMAD_IP_db" }}
-    port {{ env "NOMAD_PORT_db" }}
+    user default off
+    masteruser replication-user
+    masterauth 435e9c4225f08813ef3af7c725f0d30d263b9cd3
     daemonize no
+    # Disables the default TCP port.
+    port 0
+    bind {{ env "NOMAD_IP_db" }}
+    tls-port {{ env "NOMAD_PORT_db" }}
+    tls-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/redis/cert.pem
+    tls-key-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/redis/key.pem
+    tls-ca-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/minica.pem
+    tls-cluster yes
+    tls-replication yes
     cluster-enabled yes
-    cluster-node-timeout 15000
+    cluster-node-timeout 5000
     cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
+    cluster-require-full-coverage no
+    appendonly yes
+    save 60 1
+    maxmemory-policy noeviction
+    loglevel warning
+    # List of renamed commands comes from:
+    # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
+    rename-command BGREWRITEAOF ""
+    rename-command BGSAVE ""
+    rename-command CONFIG ""
+    rename-command DEBUG ""
+    rename-command DEL ""
+    rename-command FLUSHALL ""
+    rename-command FLUSHDB ""
+    rename-command KEYS ""
+    rename-command PEXPIRE ""
+    rename-command RENAME ""
+    rename-command SAVE ""
+    rename-command SHUTDOWN ""
+    rename-command SPOP ""
+    rename-command SREM ""
   EOF
 }
 

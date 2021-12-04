@@ -198,7 +198,7 @@ func main() {
 				break
 			}
 		} else {
-			if attemptCount == conf.AttemptLimit {
+			if attemptCount >= conf.AttemptLimit {
 				logger.Fatal("failed to join or initialize a cluster during the time permitted")
 			}
 			logger.Info("another node currently has the lock")

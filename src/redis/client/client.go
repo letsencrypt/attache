@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"sort"
 	"strings"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/letsencrypt/attache/src/redis/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -182,14 +184,25 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 	return parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly, result)
 }
 
-func New(redisNodeAddr, redisNodePass string) *Client {
+func New(conf *config.RedisConfig) (*Client, error) {
+	password, err := conf.Password.Pass()
+	if err != nil {
+		return nil, fmt.Errorf("cannot load password: %w", err)
+	}
+
+	tlsConfig, err := conf.TLSConfig.Load()
+	if err != nil {
+		return nil, fmt.Errorf("cannot load TLS config: %w", err)
+	}
+
 	return &Client{
-		NodeAddr: redisNodeAddr,
+		NodeAddr: conf.NodeAddr,
 		Client: redis.NewClient(
 			&redis.Options{
-				Addr:     redisNodeAddr,
-				Password: redisNodePass,
+				Addr:      conf.NodeAddr,
+				Password:  password,
+				TLSConfig: tlsConfig,
 			},
 		),
-	}
+	}, nil
 }
