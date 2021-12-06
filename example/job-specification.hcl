@@ -1,3 +1,35 @@
+variable "redis-username" {
+  type = string
+}
+
+variable "redis-password" {
+  type = string
+}
+
+variable "redis-tls-cacert" {
+  type = string
+}
+
+variable "redis-tls-cert" {
+  type = string
+}
+
+variable "redis-tls-key" {
+  type = string
+}
+
+variable "attache-redis-tls-cert" {
+  type = string
+}
+
+variable "attache-redis-tls-key" {
+  type = string
+}
+
+variable "redis-config-template" {
+  type = string
+}
+
 locals {
   // await-service-name is the name of the Consul Service that Attache should
   // check for Redis Nodes that are waiting to join a Redis Cluster or waiting
@@ -16,48 +48,6 @@ locals {
   // replica-count is the count of Redis Shard Replica Nodes that should exist
   // in the resulting Redis Cluster.
   replica-count = 3
-
-  // redis-config-template is the Consul Template used to produce the config
-  // file for each Redis Node.
-  redis-config-template = <<-EOF
-    user default off
-    masteruser replication-user
-    masterauth 435e9c4225f08813ef3af7c725f0d30d263b9cd3
-    daemonize no
-    # Disables the default TCP port.
-    port 0
-    bind {{ env "NOMAD_IP_db" }}
-    tls-port {{ env "NOMAD_PORT_db" }}
-    tls-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/redis/cert.pem
-    tls-key-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/redis/key.pem
-    tls-ca-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/tls/minica.pem
-    tls-cluster yes
-    tls-replication yes
-    cluster-enabled yes
-    cluster-node-timeout 5000
-    cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
-    cluster-require-full-coverage no
-    appendonly yes
-    save 60 1
-    maxmemory-policy noeviction
-    loglevel warning
-    # List of renamed commands comes from:
-    # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
-    rename-command BGREWRITEAOF ""
-    rename-command BGSAVE ""
-    rename-command CONFIG ""
-    rename-command DEBUG ""
-    rename-command DEL ""
-    rename-command FLUSHALL ""
-    rename-command FLUSHDB ""
-    rename-command KEYS ""
-    rename-command PEXPIRE ""
-    rename-command RENAME ""
-    rename-command SAVE ""
-    rename-command SHUTDOWN ""
-    rename-command SPOP ""
-    rename-command SREM ""
-  EOF
 }
 
 job "redis-cluster" {
@@ -118,9 +108,42 @@ job "redis-cluster" {
         command = "redis-server"
         args    = ["${NOMAD_ALLOC_DIR}/data/redis.conf"]
       }
+      env {
+        redis-password = "${var.redis-password}"
+      }
       template {
-        data        = local.redis-config-template
+        data        = var.redis-config-template
         destination = "${NOMAD_ALLOC_DIR}/data/redis.conf"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.redis-password
+        destination = "${NOMAD_ALLOC_DIR}/data/password.txt"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.redis-tls-cacert
+        destination = "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.redis-tls-cert
+        destination = "${NOMAD_ALLOC_DIR}/data/redis-tls/cert.pem"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.redis-tls-key
+        destination = "${NOMAD_ALLOC_DIR}/data/redis-tls/key.pem"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.attache-redis-tls-cert
+        destination = "${NOMAD_ALLOC_DIR}/data/attache-tls/cert.pem"
+        change_mode = "restart"
+      }
+      template {
+        data        = var.attache-redis-tls-key
+        destination = "${NOMAD_ALLOC_DIR}/data/attache-tls/key.pem"
         change_mode = "restart"
       }
     }
@@ -157,6 +180,12 @@ job "redis-cluster" {
           "-redis-replica-count", "${local.replica-count}",
           "-dest-service-name", "${local.dest-service-name}",
           "-await-service-name", "${local.await-service-name}",
+          "-redis-username", "${var.redis-username}",
+          "-redis-password-file", "${NOMAD_ALLOC_DIR}/data/password.txt",
+          "-redis-tls-enable",
+          "-redis-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem",
+          "-redis-tls-cert-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/cert.pem",
+          "-redis-tls-key-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/key.pem"
         ]
       }
     }
@@ -171,7 +200,13 @@ job "redis-cluster" {
         command = "$${HOME}/repos/attache/attache-check"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
-          "-check-serv-addr", "${NOMAD_ADDR_attache}"
+          "-check-serv-addr", "${NOMAD_ADDR_attache}",
+          "-redis-username", "${var.redis-username}",
+          "-redis-password-file", "${NOMAD_ALLOC_DIR}/data/password.txt",
+          "-redis-tls-enable",
+          "-redis-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem",
+          "-redis-tls-cert-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/cert.pem",
+          "-redis-tls-key-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/key.pem"
         ]
       }
     }

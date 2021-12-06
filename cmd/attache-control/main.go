@@ -23,7 +23,11 @@ func setLogLevel(level string) {
 func main() {
 	start := time.Now()
 	conf := ParseFlags()
-	ValidateConfig(conf)
+	err := conf.Validate()
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	setLogLevel(conf.LogLevel)
 	logger.Infof("starting %s", os.Args[0])
 

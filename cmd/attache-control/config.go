@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -8,7 +9,6 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/letsencrypt/attache/src/redis/config"
-	logger "github.com/sirupsen/logrus"
 )
 
 type CLIOpts struct {
@@ -32,6 +32,40 @@ type CLIOpts struct {
 	LogLevel string
 	// Exported for use with flag.Parse()
 	ConsulOpts ConsulOpts
+}
+
+func (c CLIOpts) Validate() error {
+	if c.RedisPrimaryCount == 0 {
+		return errors.New("Missing required opt: 'redis-primary-count'")
+	}
+
+	if c.DestServiceName == "" {
+		return errors.New("Missing required opt: 'dest-service-name'")
+	}
+
+	if c.AwaitServiceName == "" {
+		return errors.New("Missing required opt: 'await-service-name'")
+	}
+
+	err := c.RedisOpts.Validate()
+	if err != nil {
+		return err
+	}
+
+	if c.ConsulOpts.EnableTLS {
+		if c.ConsulOpts.TLSCACert == "" {
+			return errors.New("Missing required opt: 'consul-tls-ca-cert")
+		}
+
+		if c.ConsulOpts.TLSCert == "" {
+			return errors.New("Missing required opt: 'consul-tls-cert")
+		}
+
+		if c.ConsulOpts.TLSKey == "" {
+			return errors.New("Missing required opt: 'consul-tls-key")
+		}
+	}
+	return nil
 }
 
 type ConsulOpts struct {
@@ -114,58 +148,4 @@ func ParseFlags() CLIOpts {
 
 	flag.Parse()
 	return conf
-}
-
-func ValidateConfig(conf CLIOpts) {
-	if conf.RedisPrimaryCount == 0 {
-		logger.Fatal("Missing required opt: 'redis-primary-count'")
-	}
-
-	if conf.DestServiceName == "" {
-		logger.Fatal("Missing required opt: 'dest-service-name'")
-	}
-
-	if conf.AwaitServiceName == "" {
-		logger.Fatal("Missing required opt: 'await-service-name'")
-	}
-
-	if conf.RedisOpts.NodeAddr == "" {
-		logger.Fatal("Missing required opt: 'redis-node-addr'")
-	}
-
-	if conf.RedisOpts.Username == "" && conf.RedisOpts.PasswordFile != "" {
-		logger.Fatal("Missing required opt: 'redis-username'")
-	}
-
-	if conf.RedisOpts.Username != "" && conf.RedisOpts.PasswordFile == "" {
-		logger.Fatal("Missing required opt: 'redis-password-file'")
-	}
-
-	if conf.RedisOpts.EnableTLS {
-		if conf.RedisOpts.CACertFile == "" {
-			logger.Fatal("Missing required opt: 'redis-tls-ca-cert'")
-		}
-
-		if conf.RedisOpts.CertFile == "" {
-			logger.Fatal("Missing required opt: 'redis-tls-cert-file'")
-		}
-
-		if conf.RedisOpts.KeyFile == "" {
-			logger.Fatal("Missing required opt: 'redis-tls-key-file'")
-		}
-	}
-
-	if conf.ConsulOpts.EnableTLS {
-		if conf.ConsulOpts.TLSCACert == "" {
-			logger.Fatal("Missing required opt: 'consul-tls-ca-cert")
-		}
-
-		if conf.ConsulOpts.TLSCert == "" {
-			logger.Fatal("Missing required opt: 'consul-tls-cert")
-		}
-
-		if conf.ConsulOpts.TLSKey == "" {
-			logger.Fatal("Missing required opt: 'consul-tls-key")
-		}
-	}
 }

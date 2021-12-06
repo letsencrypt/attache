@@ -35,21 +35,29 @@ func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	var redisConf config.RedisConfig
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on (e.g. 127.0.0.1:8080)")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
-	flag.StringVar(&redisConf.NodeAddr, "redis-node-addr", "", "redis-server listening address")
 
-	logger.Infof("starting %s", os.Args[0])
+	var redisConf config.RedisConfig
+	flag.StringVar(&redisConf.NodeAddr, "redis-node-addr", "", "redis-server listening address")
+	flag.StringVar(&redisConf.Username, "redis-username", "", "redis-server username")
+	flag.StringVar(&redisConf.PasswordFile, "redis-password-file", "", "redis-server password file path")
+	flag.BoolVar(&redisConf.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
+	flag.StringVar(&redisConf.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
+	flag.StringVar(&redisConf.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")
+	flag.StringVar(&redisConf.KeyFile, "redis-tls-key-file", "", "Redis client key file")
 	flag.Parse()
 
 	if *checkServAddr == "" {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	if redisConf.NodeAddr == "" {
-		logger.Fatal("Missing required opt 'redis-node-addr'")
+	err := redisConf.Validate()
+	if err != nil {
+		logger.Fatal(err)
 	}
+
+	logger.Infof("starting %s", os.Args[0])
 
 	router := mux.NewRouter()
 	redisClient, err := redisClient.New(redisConf)

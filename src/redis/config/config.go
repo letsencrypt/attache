@@ -3,6 +3,7 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -14,6 +15,35 @@ type RedisConfig struct {
 	EnableTLS bool
 	PasswordConfig
 	TLSConfig
+}
+
+func (c RedisConfig) Validate() error {
+	if c.NodeAddr == "" {
+		return errors.New("missing required opt: 'redis-node-addr'")
+	}
+
+	if c.Username == "" && c.PasswordFile != "" {
+		return errors.New("missing required opt: 'redis-username'")
+	}
+
+	if c.Username != "" && c.PasswordFile == "" {
+		return errors.New("missing required opt: 'redis-password-file'")
+	}
+
+	if c.EnableTLS {
+		if c.CACertFile == "" {
+			return errors.New("missing required opt: 'redis-tls-ca-cert'")
+		}
+
+		if c.CertFile == "" {
+			return errors.New("missing required opt: 'redis-tls-cert-file'")
+		}
+
+		if c.KeyFile == "" {
+			return errors.New("missing required opt: 'redis-tls-key-file'")
+		}
+	}
+	return nil
 }
 
 // PasswordConfig contains a path to a file containing a password.

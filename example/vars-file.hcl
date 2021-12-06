@@ -1,6 +1,6 @@
-redis_user             = "replication-user"
-redis_pass             = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
-redis_cacert           = <<-EOF
+redis-username         = "replication-user"
+redis-password         = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
+redis-tls-cacert       = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDSzCCAjOgAwIBAgIIAg26dvKrbYkwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
   AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMCAXDTIxMTAyMzAyMTUxOVoYDzIxMjEx
@@ -22,8 +22,8 @@ redis_cacert           = <<-EOF
   D6LXhbMEV2jO6Yfqgr2H+fmiWq3nILj/XBSTEYNBqQ==
   -----END CERTIFICATE-----
 
-  EOF
-redis_tls_cert         = <<-EOF
+EOF
+redis-tls-cert         = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDVjCCAj6gAwIBAgIIP+tRomVdVFgwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
   AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMB4XDTIxMTAyODAyMjA1M1oXDTIzMTEy
@@ -45,8 +45,8 @@ redis_tls_cert         = <<-EOF
   /0FGShgrKA38ucttGEI9LsKBg4j+/0wFJ3zk4M8bA140hu0Dh2O4B7WL
   -----END CERTIFICATE-----
 
-  EOF
-redis_tls_key          = <<-EOF
+EOF
+redis-tls-key          = <<-EOF
   -----BEGIN RSA PRIVATE KEY-----
   MIIEpQIBAAKCAQEAy48V4HG9howqB/RBDm5vedbhMTAvhn4gkpQLQhYNb+JJnp1I
   dh202E4aN7/PEE3x+LYKsBH+6rbSd6DXfIPymn/TXmzyfuDHBIH3aGAUIW9gKuWU
@@ -75,8 +75,8 @@ redis_tls_key          = <<-EOF
   ObYYBIwu6npx7kcKaIctNotOfyicyGSe743Os9gkdMQtP3O6gdwp61c=
   -----END RSA PRIVATE KEY-----
 
-  EOF
-attache_redis_tls_cert = <<-EOF
+EOF
+attache-redis-tls-cert = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDKDCCAhCgAwIBAgIIevMTb5ZvH7cwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
   AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMB4XDTIxMTAyMzAyMTc0OFoXDTIzMTEy
@@ -97,8 +97,8 @@ attache_redis_tls_cert = <<-EOF
   OtOAwYCGNCOB2m6vm7tamBtEFC07h5tfh07igetMoN/nDlec8S2tiqPtGu8=
   -----END CERTIFICATE-----
 
-  EOF
-attache_redis_tls_key  = <<-EOF
+EOF
+attache-redis-tls-key  = <<-EOF
   -----BEGIN RSA PRIVATE KEY-----
   MIIEpAIBAAKCAQEAsawoHw5poDsfvPnIZQHB7Uh9X1ZH3wLPBEMT7+zSypS95Aah
   8fQx0Vi15gPeI01ImtluFOlRAdo9z2miL37FQEjKzlD8jKZvxAcxocCh/xlV1zTN
@@ -127,4 +127,46 @@ attache_redis_tls_key  = <<-EOF
   a2DTv/R7JehM0+1TiIikrsQVQnzhF/79HRiFUmlgppwWGWe7UpvcOQ==
   -----END RSA PRIVATE KEY-----
 
-  EOF
+EOF
+redis-config-template  = <<-EOF
+  user default off
+  masteruser replication-user
+  masterauth {{ env "redis-password" }}
+  # Working Directory
+  dir {{ env "NOMAD_ALLOC_DIR" }}/data/
+  daemonize no
+  # TCP Port (0 to disable)
+  port 0
+  bind {{ env "NOMAD_IP_db" }}
+  tls-port {{ env "NOMAD_PORT_db" }}
+  tls-ca-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/ca-cert.pem
+  tls-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/cert.pem
+  tls-key-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/key.pem
+  tls-cluster yes
+  tls-replication yes
+  cluster-enabled yes
+  cluster-node-timeout 5000
+  cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
+  cluster-require-full-coverage no
+  appendonly yes
+  save 60 1
+  maxmemory-policy noeviction
+  loglevel warning
+  # List of renamed commands comes from:
+  # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
+  rename-command BGREWRITEAOF ""
+  rename-command BGSAVE ""
+  rename-command CONFIG ""
+  rename-command DEBUG ""
+  rename-command DEL ""
+  rename-command FLUSHALL ""
+  rename-command FLUSHDB ""
+  rename-command KEYS ""
+  rename-command PEXPIRE ""
+  rename-command RENAME ""
+  rename-command SAVE ""
+  rename-command SHUTDOWN ""
+  rename-command SPOP ""
+  rename-command SREM ""
+
+EOF
