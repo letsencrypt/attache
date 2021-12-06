@@ -10,16 +10,28 @@ import (
 	"github.com/letsencrypt/attache/src/redis/config"
 )
 
-func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
-	if !conf.EnableTLS {
+func makeAuthArgs(conf config.RedisConfig) ([]string, error) {
+	if conf.Username == "" || conf.PasswordFile == "" {
 		return nil, nil
 	}
 	password, err := conf.LoadPassword()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load password: %w", err)
+		return nil, err
 	}
 
-	_, err = conf.TLSConfig.LoadTLS()
+	return []string{"--user",
+		conf.Username,
+		"--pass",
+		password,
+	}, nil
+}
+
+func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
+	if !conf.EnableTLS {
+		return nil, nil
+	}
+
+	_, err := conf.TLSConfig.LoadTLS()
 	if err != nil {
 		return nil, err
 	}
@@ -32,10 +44,6 @@ func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
 		conf.TLSConfig.KeyFile,
 		"--cacert",
 		conf.TLSConfig.CACertFile,
-		"--user",
-		conf.Username,
-		"--pass",
-		password,
 	}, nil
 }
 
@@ -50,6 +58,12 @@ func execute(conf config.RedisConfig, command []string) error {
 		return err
 	}
 	command = append(command, tlsArgs...)
+
+	authArgs, err := makeAuthArgs(conf)
+	if err != nil {
+		return err
+	}
+	command = append(command, authArgs...)
 
 	cmd := &exec.Cmd{
 		Path:   redisCli,
