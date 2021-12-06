@@ -186,10 +186,8 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 func New(conf config.RedisConfig) (*Client, error) {
 	options := &redis.Options{Addr: conf.NodeAddr}
 
-	var password string
-	var err error
 	if conf.EnableAuth {
-		password, err = conf.LoadPassword()
+		password, err := conf.LoadPassword()
 		if err != nil {
 			return nil, err
 		}
