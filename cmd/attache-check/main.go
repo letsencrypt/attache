@@ -10,13 +10,14 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	redis "github.com/letsencrypt/attache/src/redis/client"
+	redisClient "github.com/letsencrypt/attache/src/redis/client"
+	"github.com/letsencrypt/attache/src/redis/config"
 	logger "github.com/sirupsen/logrus"
 )
 
 // CheckHandler is a wrapper around an inner redis.Client.
 type CheckHandler struct {
-	redis.Client
+	redisClient.Client
 }
 
 func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
@@ -34,9 +35,10 @@ func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	var redisConf config.RedisConfig
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on (e.g. 127.0.0.1:8080)")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
-	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
+	flag.StringVar(&redisConf.NodeAddr, "redis-node-addr", "", "redis-server listening address")
 
 	logger.Infof("starting %s", os.Args[0])
 	flag.Parse()
@@ -45,12 +47,15 @@ func main() {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	if *redisNodeAddr == "" {
+	if redisConf.NodeAddr == "" {
 		logger.Fatal("Missing required opt 'redis-node-addr'")
 	}
 
 	router := mux.NewRouter()
-	redisClient := redis.New(*redisNodeAddr, "")
+	redisClient, err := redisClient.New(redisConf)
+	if err != nil {
+		logger.Fatalf("redis: %s")
+	}
 	handler := CheckHandler{*redisClient}
 	router.HandleFunc("/clusterinfo/state/ok", handler.StateOk)
 

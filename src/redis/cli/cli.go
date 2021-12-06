@@ -11,12 +11,15 @@ import (
 )
 
 func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
-	password, err := conf.Password.Pass()
+	if !conf.EnableTLS {
+		return nil, nil
+	}
+	password, err := conf.LoadPassword()
 	if err != nil {
 		return nil, fmt.Errorf("cannot load password: %w", err)
 	}
 
-	_, err = conf.TLSConfig.Load()
+	_, err = conf.TLSConfig.LoadTLS()
 	if err != nil {
 		return nil, err
 	}
@@ -24,11 +27,11 @@ func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
 	return []string{
 		"--tls",
 		"--cert",
-		*conf.TLSConfig.CertFile,
+		conf.TLSConfig.CertFile,
 		"--key",
-		*conf.TLSConfig.KeyFile,
+		conf.TLSConfig.KeyFile,
 		"--cacert",
-		*conf.TLSConfig.CACertFile,
+		conf.TLSConfig.CACertFile,
 		"--user",
 		conf.Username,
 		"--pass",
@@ -101,7 +104,7 @@ func AddNewShardPrimary(conf config.RedisConfig, destNodeAddr string) error {
 }
 
 func AddNewShardReplica(conf config.RedisConfig, destNodeAddr string) error {
-	redisClient, err := client.New()
+	redisClient, err := client.New(conf)
 	if err != nil {
 		return err
 	}

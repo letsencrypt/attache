@@ -8,7 +8,7 @@ import (
 	consul "github.com/letsencrypt/attache/src/consul/client"
 	lock "github.com/letsencrypt/attache/src/consul/lock"
 	rediscli "github.com/letsencrypt/attache/src/redis/cli"
-	redisclient "github.com/letsencrypt/attache/src/redis/client"
+	redisClient "github.com/letsencrypt/attache/src/redis/client"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +33,10 @@ func main() {
 		logger.Fatalf("consul: %s", err)
 	}
 
-	redisClient := redisclient.New(conf.RedisNodeAddr, "")
+	newNodeClient, err := redisClient.New(conf.RedisOpts)
+	if err != nil {
+		logger.Fatalf("redis: %s", err)
+	}
 
 	var nodesInDest []string
 	var nodesInAwait []string
@@ -43,7 +46,7 @@ func main() {
 	for range ticks {
 		attemptCount++
 
-		nodeIsNew, err := redisClient.StateNewCheck()
+		nodeIsNew, err := newNodeClient.StateNewCheck()
 		if err != nil {
 			logger.Fatalf("redis: %s", err)
 		}
@@ -137,7 +140,7 @@ func main() {
 					}
 
 					logger.Infof("attempting to create a new cluster with nodes %q", nodesToCluster)
-					err := rediscli.CreateCluster(nodesToCluster, replicasPerPrimary)
+					err := rediscli.CreateCluster(conf.RedisOpts, nodesToCluster, replicasPerPrimary)
 					if err != nil {
 						cleanup()
 						logger.Fatalf("redis: %s", err)
@@ -153,7 +156,12 @@ func main() {
 			}
 
 			logger.Infof("redis: gathering info from the cluster that %q belongs to", nodesInDest[0])
-			clusterClient := redisclient.New(nodesInDest[0], "")
+			conf.RedisOpts.NodeAddr = nodesInDest[0]
+			clusterClient, err := redisClient.New(conf.RedisOpts)
+			if err != nil {
+				cleanup()
+				logger.Fatalf("redis: %s", err)
+			}
 			primaryNodesInCluster, err := clusterClient.GetPrimaryNodes()
 			if err != nil {
 				cleanup()
@@ -169,15 +177,15 @@ func main() {
 				// The current cluster has less than `shardPrimaryCount` shard
 				// primary nodes. This node should be added as a new primary and
 				// the existing cluster shardslots should be rebalanced.
-				logger.Infof("redis: node %q should be added as a new shard primary", conf.RedisNodeAddr)
-				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisNodeAddr, nodesInDest[0])
+				logger.Infof("redis: node %q should be added as a new shard primary", conf.RedisOpts.NodeAddr)
+				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 
-				err := rediscli.AddNewShardPrimary(conf.RedisNodeAddr, nodesInDest[0])
+				err := rediscli.AddNewShardPrimary(conf.RedisOpts, nodesInDest[0])
 				if err != nil {
 					cleanup()
 					logger.Fatalf("redis: %s", err)
 				}
-				logger.Info("redis: suceeded")
+				logger.Info("redis: succeeded")
 				cleanup()
 				break
 
@@ -185,10 +193,10 @@ func main() {
 				// All `shardPrimaryCount` shard primary nodes exist in the
 				// current cluster. This node should be added as a replica to
 				// the primary node with the least number of replicas.
-				logger.Infof("redis: node %q should be added as a new shard replica", conf.RedisNodeAddr)
-				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisNodeAddr, nodesInDest[0])
+				logger.Infof("redis: node %q should be added as a new shard replica", conf.RedisOpts.NodeAddr)
+				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 
-				err := rediscli.AddNewShardReplica(conf.RedisNodeAddr, nodesInDest[0])
+				err := rediscli.AddNewShardReplica(conf.RedisOpts, nodesInDest[0])
 				if err != nil {
 					cleanup()
 					logger.Fatalf("redis: %s", err)

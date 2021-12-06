@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"io"
 	"sort"
 	"strings"
@@ -184,25 +183,25 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 	return parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly, result)
 }
 
-func New(conf *config.RedisConfig) (*Client, error) {
-	password, err := conf.Password.Pass()
-	if err != nil {
-		return nil, fmt.Errorf("cannot load password: %w", err)
+func New(conf config.RedisConfig) (*Client, error) {
+	options := &redis.Options{Addr: conf.NodeAddr}
+
+	var password string
+	var err error
+	if conf.Username != "" {
+		password, err = conf.LoadPassword()
+		if err != nil {
+			return nil, err
+		}
+		options.Password = password
 	}
 
-	tlsConfig, err := conf.TLSConfig.Load()
-	if err != nil {
-		return nil, fmt.Errorf("cannot load TLS config: %w", err)
+	if conf.EnableTLS {
+		tlsConfig, err := conf.LoadTLS()
+		if err != nil {
+			return nil, err
+		}
+		options.TLSConfig = tlsConfig
 	}
-
-	return &Client{
-		NodeAddr: conf.NodeAddr,
-		Client: redis.NewClient(
-			&redis.Options{
-				Addr:      conf.NodeAddr,
-				Password:  password,
-				TLSConfig: tlsConfig,
-			},
-		),
-	}, nil
+	return &Client{conf.NodeAddr, redis.NewClient(options)}, nil
 }
