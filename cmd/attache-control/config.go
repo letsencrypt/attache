@@ -129,8 +129,9 @@ func ParseFlags() CLIOpts {
 
 	// Redis
 	flag.StringVar(&conf.RedisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address")
-	flag.StringVar(&conf.RedisOpts.Username, "redis-username", "", "redis-server username")
-	flag.StringVar(&conf.RedisOpts.PasswordFile, "redis-password-file", "", "redis-server password file path")
+	flag.BoolVar(&conf.RedisOpts.EnableAuth, "redis-auth-enable", false, "Enable auth for the Redis client and redis-cli")
+	flag.StringVar(&conf.RedisOpts.Username, "redis-auth-username", "", "Redis username")
+	flag.StringVar(&conf.RedisOpts.PasswordFile, "redis-auth-password-file", "", "Redis password file path")
 	flag.BoolVar(&conf.RedisOpts.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
 	flag.StringVar(&conf.RedisOpts.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
 	flag.StringVar(&conf.RedisOpts.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")

@@ -11,15 +11,13 @@ import (
 )
 
 func makeAuthArgs(conf config.RedisConfig) ([]string, error) {
-	if conf.Username == "" || conf.PasswordFile == "" {
-		return nil, nil
-	}
 	password, err := conf.LoadPassword()
 	if err != nil {
 		return nil, err
 	}
 
-	return []string{"--user",
+	return []string{
+		"--user",
 		conf.Username,
 		"--pass",
 		password,
@@ -27,11 +25,7 @@ func makeAuthArgs(conf config.RedisConfig) ([]string, error) {
 }
 
 func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
-	if !conf.EnableTLS {
-		return nil, nil
-	}
-
-	_, err := conf.TLSConfig.LoadTLS()
+	_, err := conf.LoadTLS()
 	if err != nil {
 		return nil, err
 	}
@@ -53,17 +47,21 @@ func execute(conf config.RedisConfig, command []string) error {
 		return err
 	}
 
-	tlsArgs, err := makeTLSArgs(conf)
-	if err != nil {
-		return err
+	if conf.EnableTLS {
+		tlsArgs, err := makeTLSArgs(conf)
+		if err != nil {
+			return err
+		}
+		command = append(command, tlsArgs...)
 	}
-	command = append(command, tlsArgs...)
 
-	authArgs, err := makeAuthArgs(conf)
-	if err != nil {
-		return err
+	if conf.EnableAuth {
+		authArgs, err := makeAuthArgs(conf)
+		if err != nil {
+			return err
+		}
+		command = append(command, authArgs...)
 	}
-	command = append(command, authArgs...)
 
 	cmd := &exec.Cmd{
 		Path:   redisCli,

@@ -40,8 +40,9 @@ func main() {
 
 	var redisConf config.RedisConfig
 	flag.StringVar(&redisConf.NodeAddr, "redis-node-addr", "", "redis-server listening address")
-	flag.StringVar(&redisConf.Username, "redis-username", "", "redis-server username")
-	flag.StringVar(&redisConf.PasswordFile, "redis-password-file", "", "redis-server password file path")
+	flag.BoolVar(&redisConf.EnableAuth, "redis-auth-enable", false, "Enable auth for the Redis client and redis-cli")
+	flag.StringVar(&redisConf.Username, "redis-auth-username", "", "redis-server username")
+	flag.StringVar(&redisConf.PasswordFile, "redis-auth-password-file", "", "redis-server password file path")
 	flag.BoolVar(&redisConf.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
 	flag.StringVar(&redisConf.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
 	flag.StringVar(&redisConf.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")

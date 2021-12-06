@@ -31,12 +31,13 @@ func main() {
 	setLogLevel(conf.LogLevel)
 	logger.Infof("starting %s", os.Args[0])
 
-	logger.Info("consul: setting up a consul client")
+	logger.Info("consul: setting up consul client")
 	consulClient, err := conf.ConsulOpts.MakeConsulClient()
 	if err != nil {
 		logger.Fatalf("consul: %s", err)
 	}
 
+	logger.Info("consul: setting up a redis client")
 	newNodeClient, err := redisClient.New(conf.RedisOpts)
 	if err != nil {
 		logger.Fatalf("redis: %s", err)

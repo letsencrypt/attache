@@ -188,7 +188,7 @@ func New(conf config.RedisConfig) (*Client, error) {
 
 	var password string
 	var err error
-	if conf.Username != "" && conf.PasswordFile != "" {
+	if conf.EnableAuth {
 		password, err = conf.LoadPassword()
 		if err != nil {
 			return nil, err

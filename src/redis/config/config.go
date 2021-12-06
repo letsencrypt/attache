@@ -10,9 +10,10 @@ import (
 )
 
 type RedisConfig struct {
-	NodeAddr  string
-	Username  string
-	EnableTLS bool
+	NodeAddr   string
+	Username   string
+	EnableAuth bool
+	EnableTLS  bool
 	PasswordConfig
 	TLSConfig
 }
@@ -22,12 +23,14 @@ func (c RedisConfig) Validate() error {
 		return errors.New("missing required opt: 'redis-node-addr'")
 	}
 
-	if c.Username == "" && c.PasswordFile != "" {
-		return errors.New("missing required opt: 'redis-username'")
-	}
+	if c.EnableAuth {
+		if c.Username == "" {
+			return errors.New("missing required opt: 'redis-auth-username'")
+		}
 
-	if c.Username != "" && c.PasswordFile == "" {
-		return errors.New("missing required opt: 'redis-password-file'")
+		if c.PasswordFile == "" {
+			return errors.New("missing required opt: 'redis-auth-password-file'")
+		}
 	}
 
 	if c.EnableTLS {
