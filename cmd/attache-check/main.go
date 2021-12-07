@@ -64,7 +64,7 @@ func main() {
 	router := mux.NewRouter()
 	redisClient, err := redis.New(redisOpts)
 	if err != nil {
-		logger.Fatalf("redis: %s")
+		logger.Fatalf("redis: %s", err)
 	}
 	handler := CheckHandler{*redisClient}
 	router.HandleFunc("/clusterinfo/state/ok", handler.StateOk)
