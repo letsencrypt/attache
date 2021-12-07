@@ -1,53 +1,77 @@
+// await-service-name is the name of the Consul Service that Attache should
+// check for Redis Nodes that are waiting to join a Redis Cluster or waiting to
+// form a new Redis Cluster.
+variable "await-service-name" {
+  type = string
+}
+
+// dest-service-name is the name of the Consul Service that Attache should check
+// for Redis Nodes that are part of a Redis Cluster that new Redis Nodes should
+// join.
+variable "dest-service-name" {
+  type = string
+}
+
+// primary-count is the count of Redis Shard Primary Nodes that should exist in
+// the resulting Redis Cluster.
+variable "primary-count" {
+  type = string
+}
+
+// replica-count is the count of Redis Shard Replica Nodes that should exist in
+// the resulting Redis Cluster.
+variable "replica-count" {
+  type = string
+}
+
+// redis-password is the username that will be set as `masteruser` for each
+// Redis Cluster Node and used each time Attaché connects to a Redis Cluster
+// Node.
 variable "redis-username" {
   type = string
 }
 
+// redis-password is the username that will be set as `masterauth` for each
+// Redis Cluster Node and used each time Attaché connects to a Redis Cluster
+// Node.
 variable "redis-password" {
   type = string
 }
 
+// redis-tls-cert is the contents of the CA cert file, in PEM format, used for
+// mutal TLS authentication between Redis Server and Attaché.
 variable "redis-tls-cacert" {
   type = string
 }
 
+// redis-tls-cert is the contents of the cert file, in PEM format, used for
+// mutal TLS authentication between Redis Server and Attaché.
 variable "redis-tls-cert" {
   type = string
 }
 
+// redis-tls-key is the contents of the key file, in PEM format, used for mutal
+// TLS authentication between Redis Server and Attaché.
 variable "redis-tls-key" {
   type = string
 }
 
-variable "attache-redis-tls-cert" {
-  type = string
-}
-
-variable "attache-redis-tls-key" {
-  type = string
-}
-
+// redis-config-template is template used to create the configuration file used
+// loaded by each Redis Cluster Node
 variable "redis-config-template" {
   type = string
 }
 
-locals {
-  // await-service-name is the name of the Consul Service that Attache should
-  // check for Redis Nodes that are waiting to join a Redis Cluster or waiting
-  // to form a new Redis Cluster.
-  await-service-name = "redis-cluster-await"
+// attache-redis-tls-key is the contents of the cert file, in PEM format, used
+// for mutal TLS authentication between Attaché and the Redis Server.
+variable "attache-redis-tls-cert" {
+  type = string
+}
 
-  // dest-service-name is the name of the Consul Service that Attache should
-  // check for Redis Nodes that are part of a Redis Cluster that new Redis Nodes
-  // should join. 
-  dest-service-name = "redis-cluster"
-
-  // primary-count is the count of Redis Shard Primary Nodes that should exist
-  // in the resulting Redis Cluster.
-  primary-count = 3
-
-  // replica-count is the count of Redis Shard Replica Nodes that should exist
-  // in the resulting Redis Cluster.
-  replica-count = 3
+// attache-redis-tls-key is the contents of the key file, in PEM format, used
+// for mutal TLS authentication between Attaché and the Redis Server.
+variable "attache-redis-tls-key" {
+  type = string
 }
 
 job "redis-cluster" {
@@ -60,7 +84,7 @@ job "redis-cluster" {
     progress_deadline = "10m"
   }
   group "nodes" {
-    count = local.primary-count + local.replica-count
+    count = var.primary-count + var.replica-count
     network {
       // Redis
       port "db" {}
@@ -74,15 +98,8 @@ job "redis-cluster" {
     }
     task "server" {
       service {
-        name = local.dest-service-name
+        name = var.dest-service-name
         port = "db"
-        check {
-          name     = "db:tcp-alive"
-          type     = "tcp"
-          port     = "db"
-          interval = "3s"
-          timeout  = "2s"
-        }
         check {
           name     = "attache:tcp-alive"
           type     = "tcp"
@@ -153,7 +170,7 @@ job "redis-cluster" {
         sidecar = false
       }
       service {
-        name = local.await-service-name
+        name = var.await-service-name
         port = "db"
         check {
           name     = "db:tcp-alive"
@@ -176,10 +193,10 @@ job "redis-cluster" {
         command = "$${HOME}/repos/attache/attache-control"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
-          "-redis-primary-count", "${local.primary-count}",
-          "-redis-replica-count", "${local.replica-count}",
-          "-dest-service-name", "${local.dest-service-name}",
-          "-await-service-name", "${local.await-service-name}",
+          "-redis-primary-count", "${var.primary-count}",
+          "-redis-replica-count", "${var.replica-count}",
+          "-dest-service-name", "${var.dest-service-name}",
+          "-await-service-name", "${var.await-service-name}",
           "-redis-auth-enable",
           "-redis-auth-username", "${var.redis-username}",
           "-redis-auth-password-file", "${NOMAD_ALLOC_DIR}/data/password.txt",

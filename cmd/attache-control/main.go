@@ -150,7 +150,7 @@ func main() {
 						cleanup()
 						logger.Fatalf("redis: %s", err)
 					}
-					logger.Info("redis: suceeded")
+					logger.Info("redis: succeeded")
 					cleanup()
 					break
 				} else {
@@ -206,7 +206,7 @@ func main() {
 					cleanup()
 					logger.Fatalf("redis: %s", err)
 				}
-				logger.Info("redis: suceeded")
+				logger.Info("redis: succeeded")
 				cleanup()
 				break
 			}

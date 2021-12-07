@@ -1,6 +1,10 @@
-redis-username         = "replication-user"
-redis-password         = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
-redis-tls-cacert       = <<-EOF
+await-service-name = "redis-cluster-await"
+dest-service-name = "redis-cluster"
+primary-count = 3
+replica-count = 4
+redis-username = "replication-user"
+redis-password = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
+redis-tls-cacert = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDSzCCAjOgAwIBAgIIAg26dvKrbYkwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
   AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMCAXDTIxMTAyMzAyMTUxOVoYDzIxMjEx
@@ -23,7 +27,7 @@ redis-tls-cacert       = <<-EOF
   -----END CERTIFICATE-----
 
 EOF
-redis-tls-cert         = <<-EOF
+redis-tls-cert = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDJzCCAg+gAwIBAgIIEguoVcAkRXwwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
   AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMB4XDTIxMTIwNjIxNTIwOFoXDTI0MDEw
@@ -45,7 +49,7 @@ redis-tls-cert         = <<-EOF
   -----END CERTIFICATE-----
 
 EOF
-redis-tls-key          = <<-EOF
+redis-tls-key = <<-EOF
   -----BEGIN RSA PRIVATE KEY-----
   MIIEowIBAAKCAQEAsBrTn0RmwyiZlOxB779Vam0M96SJbyf0w+EDVZXqVjuGdJxX
   suSuEqF8fDZIycsRji+1WQ9IG5er4A/0TFUAxE7gFzag27hk0Y7vRnzrZi3PFive
@@ -75,6 +79,49 @@ redis-tls-key          = <<-EOF
   -----END RSA PRIVATE KEY-----
 
 EOF
+redis-config-template = <<-EOF
+  user default off
+  masteruser replication-user
+  masterauth {{ env "redis-password" }}
+  user replication-user  on +@all ~* >{{ env "redis-password" }}
+  # Working Directory
+  dir {{ env "NOMAD_ALLOC_DIR" }}/data/
+  daemonize no
+  # TCP Port (0 to disable)
+  port 0
+  bind {{ env "NOMAD_IP_db" }}
+  tls-port {{ env "NOMAD_PORT_db" }}
+  tls-ca-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/ca-cert.pem
+  tls-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/cert.pem
+  tls-key-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/key.pem
+  tls-cluster yes
+  tls-replication yes
+  cluster-enabled yes
+  cluster-node-timeout 5000
+  cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
+  cluster-require-full-coverage no
+  appendonly yes
+  save 60 1
+  maxmemory-policy noeviction
+  loglevel debug
+  # List of renamed commands comes from:
+  # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
+  rename-command BGREWRITEAOF ""
+  rename-command BGSAVE ""
+  rename-command CONFIG ""
+  rename-command DEBUG ""
+  rename-command DEL ""
+  rename-command FLUSHALL ""
+  rename-command FLUSHDB ""
+  rename-command KEYS ""
+  rename-command PEXPIRE ""
+  rename-command RENAME ""
+  rename-command SAVE ""
+  rename-command SHUTDOWN ""
+  rename-command SPOP ""
+  rename-command SREM ""
+
+EOF
 attache-redis-tls-cert = <<-EOF
   -----BEGIN CERTIFICATE-----
   MIIDJzCCAg+gAwIBAgIIH6kXr5uW/6gwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
@@ -97,7 +144,7 @@ attache-redis-tls-cert = <<-EOF
   -----END CERTIFICATE-----
 
 EOF
-attache-redis-tls-key  = <<-EOF
+attache-redis-tls-key = <<-EOF
   -----BEGIN RSA PRIVATE KEY-----
   MIIEpAIBAAKCAQEA+KjVq9tqg6Q8RAAM+FtfYEp+ge31wnwBieLv/CGnEaZSQAd9
   zZqSjJPhrgCAT3qanBXFgT23vjV9ycjj8gkUpWuVRaeeF4/RlT3A9G5FElBn2kfX
@@ -125,47 +172,5 @@ attache-redis-tls-key  = <<-EOF
   icajrMNqHmdqSTZE2x/t/G2IyQ7qdWc4oHV7fHdavTRIED1qnPttihc7LX+56q6h
   ptuRGx51m1nbP0LU+0H5vzZy712aCPtS92/n1BqKHOdTR6zYViR33w==
   -----END RSA PRIVATE KEY-----
-
-EOF
-redis-config-template  = <<-EOF
-  user default off
-  masteruser replication-user
-  masterauth {{ env "redis-password" }}
-  # Working Directory
-  dir {{ env "NOMAD_ALLOC_DIR" }}/data/
-  daemonize no
-  # TCP Port (0 to disable)
-  port 0
-  bind {{ env "NOMAD_IP_db" }}
-  tls-port {{ env "NOMAD_PORT_db" }}
-  tls-ca-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/ca-cert.pem
-  tls-cert-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/cert.pem
-  tls-key-file {{ env "NOMAD_ALLOC_DIR" }}/data/redis-tls/key.pem
-  tls-cluster yes
-  tls-replication yes
-  cluster-enabled yes
-  cluster-node-timeout 5000
-  cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
-  cluster-require-full-coverage no
-  appendonly yes
-  save 60 1
-  maxmemory-policy noeviction
-  loglevel warning
-  # List of renamed commands comes from:
-  # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
-  rename-command BGREWRITEAOF ""
-  rename-command BGSAVE ""
-  rename-command CONFIG ""
-  rename-command DEBUG ""
-  rename-command DEL ""
-  rename-command FLUSHALL ""
-  rename-command FLUSHDB ""
-  rename-command KEYS ""
-  rename-command PEXPIRE ""
-  rename-command RENAME ""
-  rename-command SAVE ""
-  rename-command SHUTDOWN ""
-  rename-command SPOP ""
-  rename-command SREM ""
 
 EOF
