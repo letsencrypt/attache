@@ -138,7 +138,7 @@ func main() {
 					if replicasPerPrimary == 0 {
 						// This handles a special case for clusters that are
 						// started with less than enough replicas to give at
-						// lease one to each primary. Once the first primary
+						// least one to each primary. Once the first primary
 						// only cluster is started and the lock is released our
 						// remaining replica nodes will be able to add
 						// themselves to the newly created cluster.
