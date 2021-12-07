@@ -46,3 +46,5 @@ attache-control
 !attache-control/
 !attache-check/
 
+# Mac
+*.DS_Store
