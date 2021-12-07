@@ -2,6 +2,7 @@ package client
 
 import (
 	consul "github.com/hashicorp/consul/api"
+	"github.com/letsencrypt/attache/src/consul/config"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -12,17 +13,32 @@ type Lock struct {
 	sessionTimeout string
 }
 
-func New(client *consul.Client, key string, sessionTimeout string) *Lock {
-	return &Lock{
+func New(conf config.ConsulOpts, key string, sessionTimeout string) (*Lock, error) {
+	consulConfig, err := conf.MakeConsulConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := consul.NewClient(consulConfig)
+	if err != nil {
+		return nil, err
+	}
+	lock := &Lock{
 		client:         client,
 		key:            key,
 		sessionTimeout: sessionTimeout,
 	}
+
+	err = lock.createSession()
+	if err != nil {
+		return nil, err
+	}
+	return lock, err
 }
 
-// CreateSession creates a new ephemeral session using the Consul client. Any
+// createSession creates a new ephemeral session using the Consul client. Any
 // data stored during this session will be deleted once the session expires.
-func (l *Lock) CreateSession() error {
+func (l *Lock) createSession() error {
 	sessionConf := &consul.SessionEntry{
 		TTL:      l.sessionTimeout,
 		Behavior: "delete",

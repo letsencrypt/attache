@@ -9,7 +9,8 @@ import (
 	"strings"
 )
 
-type RedisConfig struct {
+// RedisOpts is exported for use with flag.Parse().
+type RedisOpts struct {
 	NodeAddr   string
 	Username   string
 	EnableAuth bool
@@ -18,7 +19,7 @@ type RedisConfig struct {
 	TLSConfig
 }
 
-func (c RedisConfig) Validate() error {
+func (c RedisOpts) Validate() error {
 	if c.NodeAddr == "" {
 		return errors.New("missing required opt: 'redis-node-addr'")
 	}

@@ -183,7 +183,7 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 	return parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly, result)
 }
 
-func New(conf config.RedisConfig) (*Client, error) {
+func New(conf config.RedisOpts) (*Client, error) {
 	options := &redis.Options{Addr: conf.NodeAddr}
 
 	if conf.EnableAuth {

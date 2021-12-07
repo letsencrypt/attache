@@ -10,14 +10,15 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	redisClient "github.com/letsencrypt/attache/src/redis/client"
+	redis "github.com/letsencrypt/attache/src/redis/client"
 	"github.com/letsencrypt/attache/src/redis/config"
 	logger "github.com/sirupsen/logrus"
 )
 
-// CheckHandler is a wrapper around an inner redis.Client.
+// CheckHandler is a wraps an inner redis client with some methods for handling
+// health check requests.
 type CheckHandler struct {
-	redisClient.Client
+	redis.Client
 }
 
 func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
@@ -38,22 +39,22 @@ func main() {
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on (e.g. 127.0.0.1:8080)")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
 
-	var redisConf config.RedisConfig
-	flag.StringVar(&redisConf.NodeAddr, "redis-node-addr", "", "redis-server listening address")
-	flag.BoolVar(&redisConf.EnableAuth, "redis-auth-enable", false, "Enable auth for the Redis client and redis-cli")
-	flag.StringVar(&redisConf.Username, "redis-auth-username", "", "redis-server username")
-	flag.StringVar(&redisConf.PasswordFile, "redis-auth-password-file", "", "redis-server password file path")
-	flag.BoolVar(&redisConf.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
-	flag.StringVar(&redisConf.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
-	flag.StringVar(&redisConf.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")
-	flag.StringVar(&redisConf.KeyFile, "redis-tls-key-file", "", "Redis client key file")
+	var redisOpts config.RedisOpts
+	flag.StringVar(&redisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address")
+	flag.BoolVar(&redisOpts.EnableAuth, "redis-auth-enable", false, "Enable auth for the Redis client and redis-cli")
+	flag.StringVar(&redisOpts.Username, "redis-auth-username", "", "redis-server username")
+	flag.StringVar(&redisOpts.PasswordFile, "redis-auth-password-file", "", "redis-server password file path")
+	flag.BoolVar(&redisOpts.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
+	flag.StringVar(&redisOpts.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
+	flag.StringVar(&redisOpts.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")
+	flag.StringVar(&redisOpts.KeyFile, "redis-tls-key-file", "", "Redis client key file")
 	flag.Parse()
 
 	if *checkServAddr == "" {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	err := redisConf.Validate()
+	err := redisOpts.Validate()
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func main() {
 	logger.Infof("starting %s", os.Args[0])
 
 	router := mux.NewRouter()
-	redisClient, err := redisClient.New(redisConf)
+	redisClient, err := redis.New(redisOpts)
 	if err != nil {
 		logger.Fatalf("redis: %s")
 	}

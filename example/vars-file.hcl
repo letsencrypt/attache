@@ -1,7 +1,7 @@
 await-service-name = "redis-cluster-await"
 dest-service-name = "redis-cluster"
-primary-count = 3
-replica-count = 5
+primary-count = 4
+replica-count = 4
 redis-username = "replication-user"
 redis-password = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
 redis-tls-cacert = <<-EOF

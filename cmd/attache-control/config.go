@@ -3,35 +3,24 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
-	"net/http"
 	"time"
 
-	consul "github.com/hashicorp/consul/api"
-	"github.com/letsencrypt/attache/src/redis/config"
+	c "github.com/letsencrypt/attache/src/consul/config"
+	r "github.com/letsencrypt/attache/src/redis/config"
 )
 
+// CLIOpts is exported for use with flag.Parse().
 type CLIOpts struct {
-	// Exported for use with flag.Parse()
-	RedisOpts config.RedisConfig
-	// Exported for use with flag.Parse()
+	RedisOpts         r.RedisOpts
 	RedisPrimaryCount int
-	// Exported for use with flag.Parse()
 	RedisReplicaCount int
-	// Exported for use with flag.Parse()
-	LockPath string
-	// Exported for use with flag.Parse()
-	AttemptInterval time.Duration
-	// Exported for use with flag.Parse()
-	AttemptLimit int
-	// Exported for use with flag.Parse()
-	AwaitServiceName string
-	// Exported for use with flag.Parse()
-	DestServiceName string
-	// Exported for use with flag.Parse()
-	LogLevel string
-	// Exported for use with flag.Parse()
-	ConsulOpts ConsulOpts
+	LockPath          string
+	AttemptInterval   time.Duration
+	AttemptLimit      int
+	AwaitServiceName  string
+	DestServiceName   string
+	LogLevel          string
+	ConsulOpts        c.ConsulOpts
 }
 
 func (c CLIOpts) Validate() error {
@@ -47,71 +36,16 @@ func (c CLIOpts) Validate() error {
 		return errors.New("missing required opt: 'await-service-name'")
 	}
 
-	err := c.RedisOpts.Validate()
+	err := c.ConsulOpts.Validate()
 	if err != nil {
 		return err
 	}
 
-	if c.ConsulOpts.EnableTLS {
-		if c.ConsulOpts.TLSCACert == "" {
-			return errors.New("missing required opt: 'consul-tls-ca-cert")
-		}
-
-		if c.ConsulOpts.TLSCert == "" {
-			return errors.New("missing required opt: 'consul-tls-cert")
-		}
-
-		if c.ConsulOpts.TLSKey == "" {
-			return errors.New("missing required opt: 'consul-tls-key")
-		}
+	err = c.RedisOpts.Validate()
+	if err != nil {
+		return err
 	}
 	return nil
-}
-
-type ConsulOpts struct {
-	// Exported for use with flag.Parse()
-	DC string
-	// Exported for use with flag.Parse()
-	Address string
-	// Exported for use with flag.Parse()
-	ACLToken string
-	// Exported for use with flag.Parse()
-	EnableTLS bool
-	// Exported for use with flag.Parse()
-	TLSCACert string
-	// Exported for use with flag.Parse()
-	TLSCert string
-	// Exported for use with flag.Parse()
-	TLSKey string
-}
-
-func (c *ConsulOpts) MakeConsulClient() (*consul.Client, error) {
-	config := consul.DefaultConfig()
-	config.Datacenter = c.DC
-	config.Address = c.Address
-	config.Token = c.ACLToken
-	if c.EnableTLS {
-		config.Scheme = "https"
-		tlsConfig := consul.TLSConfig{
-			Address:  c.Address,
-			CAFile:   c.TLSCACert,
-			CertFile: c.TLSCert,
-			KeyFile:  c.TLSKey,
-		}
-		tlsClientConf, err := consul.SetupTLSConfig(&tlsConfig)
-		if err != nil {
-			return nil, fmt.Errorf("error creating TLS client config for consul: %w", err)
-		}
-		config.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsClientConf,
-		}
-	}
-
-	client, err := consul.NewClient(config)
-	if err != nil {
-		return nil, err
-	}
-	return client, nil
 }
 
 func ParseFlags() CLIOpts {

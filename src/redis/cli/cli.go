@@ -10,7 +10,7 @@ import (
 	"github.com/letsencrypt/attache/src/redis/config"
 )
 
-func makeAuthArgs(conf config.RedisConfig) ([]string, error) {
+func makeAuthArgs(conf config.RedisOpts) ([]string, error) {
 	password, err := conf.LoadPassword()
 	if err != nil {
 		return nil, err
@@ -24,7 +24,7 @@ func makeAuthArgs(conf config.RedisConfig) ([]string, error) {
 	}, nil
 }
 
-func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
+func makeTLSArgs(conf config.RedisOpts) ([]string, error) {
 	_, err := conf.LoadTLS()
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func makeTLSArgs(conf config.RedisConfig) ([]string, error) {
 	}, nil
 }
 
-func execute(conf config.RedisConfig, command []string) error {
+func execute(conf config.RedisOpts, command []string) error {
 	redisCli, err := exec.LookPath("redis-cli")
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func execute(conf config.RedisConfig, command []string) error {
 	return nil
 }
 
-func CreateCluster(conf config.RedisConfig, nodes []string, replicasPerShard int) error {
+func CreateCluster(conf config.RedisOpts, nodes []string, replicasPerShard int) error {
 	var opts []string
 	opts = append(opts, "--cluster", "create")
 	opts = append(opts, nodes...)
@@ -90,7 +90,7 @@ func CreateCluster(conf config.RedisConfig, nodes []string, replicasPerShard int
 	return execute(conf, opts)
 }
 
-func AddNewShardPrimary(conf config.RedisConfig, destNodeAddr string) error {
+func AddNewShardPrimary(conf config.RedisOpts, destNodeAddr string) error {
 	err := execute(conf, []string{"--cluster", "add-node", conf.NodeAddr, destNodeAddr})
 	if err != nil {
 		return err
@@ -115,9 +115,9 @@ func AddNewShardPrimary(conf config.RedisConfig, destNodeAddr string) error {
 	return nil
 }
 
-func AddNewShardReplica(conf config.RedisConfig, destNodeAddr string) error {
+func AddNewShardReplica(conf config.RedisOpts, destNodeAddr string) error {
 	clusterClient, err := client.New(
-		config.RedisConfig{
+		config.RedisOpts{
 			NodeAddr:       destNodeAddr,
 			Username:       conf.Username,
 			EnableAuth:     conf.EnableAuth,
