@@ -9,6 +9,7 @@ import (
 	lock "github.com/letsencrypt/attache/src/consul/lock"
 	rediscli "github.com/letsencrypt/attache/src/redis/cli"
 	redisClient "github.com/letsencrypt/attache/src/redis/client"
+	"github.com/letsencrypt/attache/src/redis/config"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -161,8 +162,16 @@ func main() {
 			}
 
 			logger.Infof("redis: gathering info from the cluster that %q belongs to", nodesInDest[0])
-			conf.RedisOpts.NodeAddr = nodesInDest[0]
-			clusterClient, err := redisClient.New(conf.RedisOpts)
+			clusterClient, err := redisClient.New(
+				config.RedisConfig{
+					NodeAddr:       nodesInDest[0],
+					Username:       conf.RedisOpts.Username,
+					EnableAuth:     conf.RedisOpts.EnableAuth,
+					PasswordConfig: conf.RedisOpts.PasswordConfig,
+					EnableTLS:      conf.RedisOpts.EnableTLS,
+					TLSConfig:      conf.RedisOpts.TLSConfig,
+				},
+			)
 			if err != nil {
 				cleanup()
 				logger.Fatalf("redis: %s", err)

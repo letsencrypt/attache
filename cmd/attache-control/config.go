@@ -36,15 +36,15 @@ type CLIOpts struct {
 
 func (c CLIOpts) Validate() error {
 	if c.RedisPrimaryCount == 0 {
-		return errors.New("Missing required opt: 'redis-primary-count'")
+		return errors.New("missing required opt: 'redis-primary-count'")
 	}
 
 	if c.DestServiceName == "" {
-		return errors.New("Missing required opt: 'dest-service-name'")
+		return errors.New("missing required opt: 'dest-service-name'")
 	}
 
 	if c.AwaitServiceName == "" {
-		return errors.New("Missing required opt: 'await-service-name'")
+		return errors.New("missing required opt: 'await-service-name'")
 	}
 
 	err := c.RedisOpts.Validate()
@@ -54,15 +54,15 @@ func (c CLIOpts) Validate() error {
 
 	if c.ConsulOpts.EnableTLS {
 		if c.ConsulOpts.TLSCACert == "" {
-			return errors.New("Missing required opt: 'consul-tls-ca-cert")
+			return errors.New("missing required opt: 'consul-tls-ca-cert")
 		}
 
 		if c.ConsulOpts.TLSCert == "" {
-			return errors.New("Missing required opt: 'consul-tls-cert")
+			return errors.New("missing required opt: 'consul-tls-cert")
 		}
 
 		if c.ConsulOpts.TLSKey == "" {
-			return errors.New("Missing required opt: 'consul-tls-key")
+			return errors.New("missing required opt: 'consul-tls-key")
 		}
 	}
 	return nil
@@ -111,7 +111,6 @@ func (c *ConsulOpts) MakeConsulClient() (*consul.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return client, nil
 }
 

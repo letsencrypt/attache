@@ -116,12 +116,21 @@ func AddNewShardPrimary(conf config.RedisConfig, destNodeAddr string) error {
 }
 
 func AddNewShardReplica(conf config.RedisConfig, destNodeAddr string) error {
-	redisClient, err := client.New(conf)
+	clusterClient, err := client.New(
+		config.RedisConfig{
+			NodeAddr:       destNodeAddr,
+			Username:       conf.Username,
+			EnableAuth:     conf.EnableAuth,
+			PasswordConfig: conf.PasswordConfig,
+			EnableTLS:      conf.EnableTLS,
+			TLSConfig:      conf.TLSConfig,
+		},
+	)
 	if err != nil {
 		return err
 	}
 
-	primaryAddr, primaryID, err := redisClient.GetPrimaryWithLeastReplicas()
+	primaryAddr, primaryID, err := clusterClient.GetPrimaryWithLeastReplicas()
 	if err != nil {
 		return err
 	}
