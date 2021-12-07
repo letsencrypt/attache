@@ -24,14 +24,14 @@ variable "replica-count" {
   type = string
 }
 
-// redis-password is the username that will be set as `masteruser` for each
+// redis-username is the username that will be set as `masteruser` for each
 // Redis Cluster Node and used each time Attaché connects to a Redis Cluster
 // Node.
 variable "redis-username" {
   type = string
 }
 
-// redis-password is the username that will be set as `masterauth` for each
+// redis-password is the password that will be set as `masterauth` for each
 // Redis Cluster Node and used each time Attaché connects to a Redis Cluster
 // Node.
 variable "redis-password" {
