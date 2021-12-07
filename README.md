@@ -13,8 +13,8 @@ Nomad and Consul.
 - [x] Redis ACL
 - [x] Redis Password
 - [x] Redis mTLS
-- [] Drain, failover, and FORGET an existing primary node
-- [] Remove and FORGET an existing replica node
+- [ ] Drain, failover, and FORGET an existing primary node
+- [ ] Remove and FORGET an existing replica node
 
 ### `attache-check`
 A sidecar that servers an HTTP API that allows Consul to track the health of
