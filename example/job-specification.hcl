@@ -38,7 +38,7 @@ variable "redis-password" {
   type = string
 }
 
-// redis-tls-cert is the contents of the CA cert file, in PEM format, used for
+// redis-tls-cacert is the contents of the CA cert file, in PEM format, used for
 // mutal TLS authentication between Redis Server and Attaché.
 variable "redis-tls-cacert" {
   type = string
@@ -62,7 +62,7 @@ variable "redis-config-template" {
   type = string
 }
 
-// attache-redis-tls-key is the contents of the cert file, in PEM format, used
+// attache-redis-tls-cert is the contents of the cert file, in PEM format, used
 // for mutal TLS authentication between Attaché and the Redis Server.
 variable "attache-redis-tls-cert" {
   type = string
