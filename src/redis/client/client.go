@@ -186,21 +186,17 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 func New(conf config.RedisOpts) (*Client, error) {
 	options := &redis.Options{Addr: conf.NodeAddr}
 
-	if conf.EnableAuth {
-		password, err := conf.LoadPassword()
-		if err != nil {
-			return nil, err
-		}
-		options.Username = conf.Username
-		options.Password = password
+	password, err := conf.LoadPassword()
+	if err != nil {
+		return nil, err
 	}
+	options.Username = conf.Username
+	options.Password = password
 
-	if conf.EnableTLS {
-		tlsConfig, err := conf.LoadTLS()
-		if err != nil {
-			return nil, err
-		}
-		options.TLSConfig = tlsConfig
+	tlsConfig, err := conf.LoadTLS()
+	if err != nil {
+		return nil, err
 	}
+	options.TLSConfig = tlsConfig
 	return &Client{conf.NodeAddr, redis.NewClient(options)}, nil
 }

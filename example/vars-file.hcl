@@ -1,7 +1,7 @@
 await-service-name = "redis-cluster-await"
 dest-service-name = "redis-cluster"
-primary-count = 4
-replica-count = 4
+primary-count = 3
+replica-count = 3
 redis-username = "replication-user"
 redis-password = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
 redis-tls-cacert = <<-EOF
@@ -81,8 +81,6 @@ redis-tls-key = <<-EOF
 EOF
 redis-config-template = <<-EOF
   user default off
-  masteruser replication-user
-  masterauth {{ env "redis-password" }}
   user replication-user  on +@all ~* >{{ env "redis-password" }}
   # Working Directory
   dir {{ env "NOMAD_ALLOC_DIR" }}/data/
@@ -100,10 +98,10 @@ redis-config-template = <<-EOF
   cluster-node-timeout 5000
   cluster-config-file {{ env "NOMAD_ALLOC_DIR" }}/data/nodes.conf
   cluster-require-full-coverage no
-  appendonly yes
+  # Enable snapshotting and save a snapshot every 60 seconds if at least one key has changed.
   save 60 1
   maxmemory-policy noeviction
-  loglevel debug
+  loglevel warning
   # List of renamed commands comes from:
   # https://www.digitalocean.com/community/tutorials/how-to-secure-your-redis-installation-on-ubuntu-18-04
   rename-command BGREWRITEAOF ""

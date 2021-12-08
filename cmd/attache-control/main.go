@@ -168,9 +168,7 @@ func main() {
 				config.RedisOpts{
 					NodeAddr:       nodesInDest[0],
 					Username:       conf.RedisOpts.Username,
-					EnableAuth:     conf.RedisOpts.EnableAuth,
 					PasswordConfig: conf.RedisOpts.PasswordConfig,
-					EnableTLS:      conf.RedisOpts.EnableTLS,
 					TLSConfig:      conf.RedisOpts.TLSConfig,
 				},
 			)

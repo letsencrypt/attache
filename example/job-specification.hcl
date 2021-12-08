@@ -15,13 +15,13 @@ variable "dest-service-name" {
 // primary-count is the count of Redis Shard Primary Nodes that should exist in
 // the resulting Redis Cluster.
 variable "primary-count" {
-  type = string
+  type = number
 }
 
 // replica-count is the count of Redis Shard Replica Nodes that should exist in
 // the resulting Redis Cluster.
 variable "replica-count" {
-  type = string
+  type = number
 }
 
 // redis-username is the username that will be set as `masteruser` for each
@@ -94,7 +94,6 @@ job "redis-cluster" {
     ephemeral_disk {
       sticky  = true
       migrate = true
-      size    = 600
     }
     task "server" {
       service {
@@ -115,10 +114,6 @@ job "redis-cluster" {
           interval = "3s"
           timeout  = "2s"
         }
-      }
-      resources {
-        cpu    = 500
-        memory = 512
       }
       driver = "raw_exec"
       config {
@@ -197,10 +192,8 @@ job "redis-cluster" {
           "-redis-replica-count", "${var.replica-count}",
           "-dest-service-name", "${var.dest-service-name}",
           "-await-service-name", "${var.await-service-name}",
-          "-redis-auth-enable",
           "-redis-auth-username", "${var.redis-username}",
           "-redis-auth-password-file", "${NOMAD_ALLOC_DIR}/data/password.txt",
-          "-redis-tls-enable",
           "-redis-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem",
           "-redis-tls-cert-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/cert.pem",
           "-redis-tls-key-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/key.pem"
@@ -219,10 +212,8 @@ job "redis-cluster" {
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
           "-check-serv-addr", "${NOMAD_ADDR_attache}",
-          "-redis-auth-enable",
           "-redis-auth-username", "${var.redis-username}",
           "-redis-auth-password-file", "${NOMAD_ALLOC_DIR}/data/password.txt",
-          "-redis-tls-enable",
           "-redis-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem",
           "-redis-tls-cert-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/cert.pem",
           "-redis-tls-key-file", "${NOMAD_ALLOC_DIR}/data/attache-tls/key.pem"

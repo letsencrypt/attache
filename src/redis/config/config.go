@@ -11,10 +11,8 @@ import (
 
 // RedisOpts is exported for use with flag.Parse().
 type RedisOpts struct {
-	NodeAddr   string
-	Username   string
-	EnableAuth bool
-	EnableTLS  bool
+	NodeAddr string
+	Username string
 	PasswordConfig
 	TLSConfig
 }
@@ -24,28 +22,24 @@ func (c RedisOpts) Validate() error {
 		return errors.New("missing required opt: 'redis-node-addr'")
 	}
 
-	if c.EnableAuth {
-		if c.Username == "" {
-			return errors.New("missing required opt: 'redis-auth-username'")
-		}
-
-		if c.PasswordFile == "" {
-			return errors.New("missing required opt: 'redis-auth-password-file'")
-		}
+	if c.Username == "" {
+		return errors.New("missing required opt: 'redis-auth-username'")
 	}
 
-	if c.EnableTLS {
-		if c.CACertFile == "" {
-			return errors.New("missing required opt: 'redis-tls-ca-cert'")
-		}
+	if c.PasswordFile == "" {
+		return errors.New("missing required opt: 'redis-auth-password-file'")
+	}
 
-		if c.CertFile == "" {
-			return errors.New("missing required opt: 'redis-tls-cert-file'")
-		}
+	if c.CACertFile == "" {
+		return errors.New("missing required opt: 'redis-tls-ca-cert'")
+	}
 
-		if c.KeyFile == "" {
-			return errors.New("missing required opt: 'redis-tls-key-file'")
-		}
+	if c.CertFile == "" {
+		return errors.New("missing required opt: 'redis-tls-cert-file'")
+	}
+
+	if c.KeyFile == "" {
+		return errors.New("missing required opt: 'redis-tls-key-file'")
 	}
 	return nil
 }
@@ -95,17 +89,8 @@ func (c TLSConfig) LoadTLS() (*tls.Config, error) {
 			err,
 		)
 	}
-
 	return &tls.Config{
 		RootCAs:      rootCAs,
-		ClientCAs:    rootCAs,
-		ClientAuth:   tls.RequireAndVerifyClientCert,
 		Certificates: []tls.Certificate{cert},
-
-		// Set the only acceptable TLS version to 1.2 and the only acceptable
-		// cipher suite to ECDHE-RSA-CHACHA20-POLY1305.
-		MinVersion:   tls.VersionTLS12,
-		MaxVersion:   tls.VersionTLS12,
-		CipherSuites: []uint16{tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305},
 	}, nil
 }

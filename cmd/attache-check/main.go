@@ -40,14 +40,12 @@ func main() {
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
 
 	var redisOpts config.RedisOpts
-	flag.StringVar(&redisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address")
-	flag.BoolVar(&redisOpts.EnableAuth, "redis-auth-enable", false, "Enable auth for the Redis client and redis-cli")
-	flag.StringVar(&redisOpts.Username, "redis-auth-username", "", "redis-server username")
-	flag.StringVar(&redisOpts.PasswordFile, "redis-auth-password-file", "", "redis-server password file path")
-	flag.BoolVar(&redisOpts.EnableTLS, "redis-tls-enable", false, "Enable mTLS for the Redis client")
-	flag.StringVar(&redisOpts.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file")
-	flag.StringVar(&redisOpts.CertFile, "redis-tls-cert-file", "", "Redis client certificate file")
-	flag.StringVar(&redisOpts.KeyFile, "redis-tls-key-file", "", "Redis client key file")
+	flag.StringVar(&redisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address, (required)")
+	flag.StringVar(&redisOpts.Username, "redis-auth-username", "", "redis-server username, (required)")
+	flag.StringVar(&redisOpts.PasswordFile, "redis-auth-password-file", "", "redis-server password file path, (required)")
+	flag.StringVar(&redisOpts.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file, (required)")
+	flag.StringVar(&redisOpts.CertFile, "redis-tls-cert-file", "", "Redis client certificate file, (required)")
+	flag.StringVar(&redisOpts.KeyFile, "redis-tls-key-file", "", "Redis client key file, (required)")
 	flag.Parse()
 
 	if *checkServAddr == "" {

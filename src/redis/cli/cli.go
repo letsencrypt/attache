@@ -47,21 +47,17 @@ func execute(conf config.RedisOpts, command []string) error {
 		return err
 	}
 
-	if conf.EnableTLS {
-		tlsArgs, err := makeTLSArgs(conf)
-		if err != nil {
-			return err
-		}
-		command = append(command, tlsArgs...)
+	tlsArgs, err := makeTLSArgs(conf)
+	if err != nil {
+		return err
 	}
+	command = append(command, tlsArgs...)
 
-	if conf.EnableAuth {
-		authArgs, err := makeAuthArgs(conf)
-		if err != nil {
-			return err
-		}
-		command = append(command, authArgs...)
+	authArgs, err := makeAuthArgs(conf)
+	if err != nil {
+		return err
 	}
+	command = append(command, authArgs...)
 
 	cmd := &exec.Cmd{
 		Path:   redisCli,
@@ -120,9 +116,7 @@ func AddNewShardReplica(conf config.RedisOpts, destNodeAddr string) error {
 		config.RedisOpts{
 			NodeAddr:       destNodeAddr,
 			Username:       conf.Username,
-			EnableAuth:     conf.EnableAuth,
 			PasswordConfig: conf.PasswordConfig,
-			EnableTLS:      conf.EnableTLS,
 			TLSConfig:      conf.TLSConfig,
 		},
 	)
