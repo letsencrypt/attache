@@ -24,25 +24,22 @@ once they've joined a cluster.
 
 #### Usage
 ```shell
+$ attache-check -help
 Usage of ./attache-check:
   -check-serv-addr string
     	address this utility should listen on (e.g. 127.0.0.1:8080)
-  -redis-auth-enable
-    	Enable auth for the Redis client and redis-cli
   -redis-auth-password-file string
-    	redis-server password file path
+    	redis-server password file path, (required)
   -redis-auth-username string
-    	redis-server username
+    	redis-server username, (required)
   -redis-node-addr string
-    	redis-server listening address
+    	redis-server listening address, (required)
   -redis-tls-ca-cert string
-    	Redis client CA certificate file
+    	Redis client CA certificate file, (required)
   -redis-tls-cert-file string
-    	Redis client certificate file
-  -redis-tls-enable
-    	Enable mTLS for the Redis client
+    	Redis client certificate file, (required)
   -redis-tls-key-file string
-    	Redis client key file
+    	Redis client key file, (required)
   -shutdown-grace duration
     	duration to wait before shutting down (e.g. '1s') (default 5s)
 ```
@@ -63,7 +60,7 @@ Usage of ./attache-control:
   -attempt-limit int
     	Number of times to attempt joining or creating a cluster before exiting (default 20)
   -await-service-name string
-    	Consul Service for any newly created Redis Cluster Nodes
+    	Consul Service for newly created Redis Cluster Nodes, (required)
   -consul-acl-token string
     	Consul client ACL token
   -consul-addr string
@@ -79,31 +76,27 @@ Usage of ./attache-control:
   -consul-tls-key string
     	Consul client key file
   -dest-service-name string
-    	Consul Service for any existing Redis Cluster Nodes
+    	Consul Service for healthy Redis Cluster Nodes, (required)
   -lock-kv-path string
     	Consul KV path used as a distributed lock for operations (default "service/attache/leader")
   -log-level string
     	Set the log level (default "info")
-  -redis-auth-enable
-    	Enable auth for the Redis client and redis-cli
   -redis-auth-password-file string
-    	Redis password file path
+    	Redis password file path, (required)
   -redis-auth-username string
-    	Redis username
+    	Redis username, (required)
   -redis-node-addr string
-    	redis-server listening address
+    	redis-server listening address, (required)
   -redis-primary-count int
-    	Total number of expected Redis shard primary nodes
+    	Total number of expected Redis shard primary nodes, (required)
   -redis-replica-count int
     	Total number of expected Redis shard replica nodes
   -redis-tls-ca-cert string
-    	Redis client CA certificate file
+    	Redis client CA certificate file, (required)
   -redis-tls-cert-file string
-    	Redis client certificate file
-  -redis-tls-enable
-    	Enable mTLS for the Redis client
+    	Redis client certificate file, (required)
   -redis-tls-key-file string
-    	Redis client key file
+    	Redis client key file, (required)
 ```
 
 ### Running the Example Nomad Job
