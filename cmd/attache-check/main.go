@@ -11,10 +11,12 @@ import (
 
 	"github.com/gorilla/mux"
 	redis "github.com/letsencrypt/attache/src/redis/client"
+	"github.com/letsencrypt/attache/src/redis/config"
 	logger "github.com/sirupsen/logrus"
 )
 
-// CheckHandler is a wrapper around an inner redis.Client.
+// CheckHandler is a wraps an inner redis client with some methods for handling
+// health check requests.
 type CheckHandler struct {
 	redis.Client
 }
@@ -36,21 +38,32 @@ func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 func main() {
 	checkServAddr := flag.String("check-serv-addr", "", "address this utility should listen on (e.g. 127.0.0.1:8080)")
 	shutdownGrace := flag.Duration("shutdown-grace", time.Second*5, "duration to wait before shutting down (e.g. '1s')")
-	redisNodeAddr := flag.String("redis-node-addr", "", "redis-server listening address")
 
-	logger.Infof("starting %s", os.Args[0])
+	var redisOpts config.RedisOpts
+	flag.StringVar(&redisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address, (required)")
+	flag.StringVar(&redisOpts.Username, "redis-auth-username", "", "redis-server username, (required)")
+	flag.StringVar(&redisOpts.PasswordFile, "redis-auth-password-file", "", "redis-server password file path, (required)")
+	flag.StringVar(&redisOpts.CACertFile, "redis-tls-ca-cert", "", "Redis client CA certificate file, (required)")
+	flag.StringVar(&redisOpts.CertFile, "redis-tls-cert-file", "", "Redis client certificate file, (required)")
+	flag.StringVar(&redisOpts.KeyFile, "redis-tls-key-file", "", "Redis client key file, (required)")
 	flag.Parse()
 
 	if *checkServAddr == "" {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	if *redisNodeAddr == "" {
-		logger.Fatal("Missing required opt 'redis-node-addr'")
+	err := redisOpts.Validate()
+	if err != nil {
+		logger.Fatal(err)
 	}
 
+	logger.Infof("starting %s", os.Args[0])
+
 	router := mux.NewRouter()
-	redisClient := redis.New(*redisNodeAddr, "")
+	redisClient, err := redis.New(redisOpts)
+	if err != nil {
+		logger.Fatalf("redis: %s", err)
+	}
 	handler := CheckHandler{*redisClient}
 	router.HandleFunc("/clusterinfo/state/ok", handler.StateOk)
 

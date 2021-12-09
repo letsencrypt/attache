@@ -5,10 +5,11 @@ import (
 	"os/signal"
 	"time"
 
-	consul "github.com/letsencrypt/attache/src/consul/client"
-	lock "github.com/letsencrypt/attache/src/consul/lock"
-	rediscli "github.com/letsencrypt/attache/src/redis/cli"
-	redisclient "github.com/letsencrypt/attache/src/redis/client"
+	consulClient "github.com/letsencrypt/attache/src/consul/client"
+	lockClient "github.com/letsencrypt/attache/src/consul/lock"
+	redisCLI "github.com/letsencrypt/attache/src/redis/cli"
+	redisClient "github.com/letsencrypt/attache/src/redis/client"
+	"github.com/letsencrypt/attache/src/redis/config"
 	logger "github.com/sirupsen/logrus"
 )
 
@@ -23,17 +24,19 @@ func setLogLevel(level string) {
 func main() {
 	start := time.Now()
 	conf := ParseFlags()
-	ValidateConfig(conf)
+	err := conf.Validate()
+	if err != nil {
+		logger.Fatal(err)
+	}
+
 	setLogLevel(conf.LogLevel)
 	logger.Infof("starting %s", os.Args[0])
 
-	logger.Info("consul: setting up a consul client")
-	consulClient, err := conf.ConsulOpts.MakeConsulClient()
+	logger.Info("consul: setting up a redis client")
+	newNodeClient, err := redisClient.New(conf.RedisOpts)
 	if err != nil {
-		logger.Fatalf("consul: %s", err)
+		logger.Fatalf("redis: %s", err)
 	}
-
-	redisClient := redisclient.New(conf.RedisNodeAddr, "")
 
 	var nodesInDest []string
 	var nodesInAwait []string
@@ -43,7 +46,7 @@ func main() {
 	for range ticks {
 		attemptCount++
 
-		nodeIsNew, err := redisClient.StateNewCheck()
+		nodeIsNew, err := newNodeClient.StateNewCheck()
 		if err != nil {
 			logger.Fatalf("redis: %s", err)
 		}
@@ -53,8 +56,7 @@ func main() {
 			break
 		}
 
-		lock := lock.New(consulClient, conf.LockPath, "10s")
-		err = lock.CreateSession()
+		lock, err := lockClient.New(conf.ConsulOpts, conf.LockPath, "10s")
 		if err != nil {
 			logger.Fatalf("consul: %s", err)
 		}
@@ -87,13 +89,17 @@ func main() {
 				// Stop renewing the lock session.
 				close(doneChan)
 				lock.Cleanup()
-
 			}
 
 			// Check the Consul service catalog for an existing Redis Cluster
 			// that we can join. We're limiting the scope of our search to nodes
 			// in the destService Consul service that Consul considers healthy.
-			destService := consul.New(consulClient, conf.DestServiceName, "", true)
+			destService, err := consulClient.New(conf.ConsulOpts, conf.DestServiceName, "", true)
+			if err != nil {
+				cleanup()
+				logger.Fatal(err)
+			}
+
 			nodesInDest, err = destService.GetNodeAddresses()
 			if err != nil {
 				cleanup()
@@ -108,7 +114,12 @@ func main() {
 				// waiting to form a cluster. We're limiting the scope of our
 				// search to nodes in the awaitService Consul service that
 				// Consul considers healthy.
-				awaitService := consul.New(consulClient, conf.AwaitServiceName, "", true)
+				awaitService, err := consulClient.New(conf.ConsulOpts, conf.AwaitServiceName, "", true)
+				if err != nil {
+					cleanup()
+					logger.Fatal(err)
+				}
+
 				nodesInAwait, err = awaitService.GetNodeAddresses()
 				if err != nil {
 					cleanup()
@@ -127,7 +138,7 @@ func main() {
 					if replicasPerPrimary == 0 {
 						// This handles a special case for clusters that are
 						// started with less than enough replicas to give at
-						// lease one to each primary. Once the first primary
+						// least one to each primary. Once the first primary
 						// only cluster is started and the lock is released our
 						// remaining replica nodes will be able to add
 						// themselves to the newly created cluster.
@@ -137,12 +148,12 @@ func main() {
 					}
 
 					logger.Infof("attempting to create a new cluster with nodes %q", nodesToCluster)
-					err := rediscli.CreateCluster(nodesToCluster, replicasPerPrimary)
+					err := redisCLI.CreateCluster(conf.RedisOpts, nodesToCluster, replicasPerPrimary)
 					if err != nil {
 						cleanup()
 						logger.Fatalf("redis: %s", err)
 					}
-					logger.Info("redis: suceeded")
+					logger.Info("redis: succeeded")
 					cleanup()
 					break
 				} else {
@@ -153,12 +164,25 @@ func main() {
 			}
 
 			logger.Infof("redis: gathering info from the cluster that %q belongs to", nodesInDest[0])
-			clusterClient := redisclient.New(nodesInDest[0], "")
+			clusterClient, err := redisClient.New(
+				config.RedisOpts{
+					NodeAddr:       nodesInDest[0],
+					Username:       conf.RedisOpts.Username,
+					PasswordConfig: conf.RedisOpts.PasswordConfig,
+					TLSConfig:      conf.RedisOpts.TLSConfig,
+				},
+			)
+			if err != nil {
+				cleanup()
+				logger.Fatalf("redis: %s", err)
+			}
+
 			primaryNodesInCluster, err := clusterClient.GetPrimaryNodes()
 			if err != nil {
 				cleanup()
 				logger.Fatalf("redis: %s", err)
 			}
+
 			replicaNodesInCluster, err := clusterClient.GetReplicaNodes()
 			if err != nil {
 				cleanup()
@@ -169,15 +193,15 @@ func main() {
 				// The current cluster has less than `shardPrimaryCount` shard
 				// primary nodes. This node should be added as a new primary and
 				// the existing cluster shardslots should be rebalanced.
-				logger.Infof("redis: node %q should be added as a new shard primary", conf.RedisNodeAddr)
-				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisNodeAddr, nodesInDest[0])
+				logger.Infof("redis: node %q should be added as a new shard primary", conf.RedisOpts.NodeAddr)
+				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 
-				err := rediscli.AddNewShardPrimary(conf.RedisNodeAddr, nodesInDest[0])
+				err := redisCLI.AddNewShardPrimary(conf.RedisOpts, nodesInDest[0])
 				if err != nil {
 					cleanup()
 					logger.Fatalf("redis: %s", err)
 				}
-				logger.Info("redis: suceeded")
+				logger.Info("redis: succeeded")
 				cleanup()
 				break
 
@@ -185,20 +209,20 @@ func main() {
 				// All `shardPrimaryCount` shard primary nodes exist in the
 				// current cluster. This node should be added as a replica to
 				// the primary node with the least number of replicas.
-				logger.Infof("redis: node %q should be added as a new shard replica", conf.RedisNodeAddr)
-				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisNodeAddr, nodesInDest[0])
+				logger.Infof("redis: node %q should be added as a new shard replica", conf.RedisOpts.NodeAddr)
+				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 
-				err := rediscli.AddNewShardReplica(conf.RedisNodeAddr, nodesInDest[0])
+				err := redisCLI.AddNewShardReplica(conf.RedisOpts, nodesInDest[0])
 				if err != nil {
 					cleanup()
 					logger.Fatalf("redis: %s", err)
 				}
-				logger.Info("redis: suceeded")
+				logger.Info("redis: succeeded")
 				cleanup()
 				break
 			}
 		} else {
-			if attemptCount == conf.AttemptLimit {
+			if attemptCount >= conf.AttemptLimit {
 				logger.Fatal("failed to join or initialize a cluster during the time permitted")
 			}
 			logger.Info("another node currently has the lock")

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-redis/redis/v8"
+	"github.com/letsencrypt/attache/src/redis/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -182,14 +183,20 @@ func (h *Client) getClusterNodes(connectedOnly, primaryOnly, replicaOnly bool) (
 	return parseClusterNodesResult(connectedOnly, primaryOnly, replicaOnly, result)
 }
 
-func New(redisNodeAddr, redisNodePass string) *Client {
-	return &Client{
-		NodeAddr: redisNodeAddr,
-		Client: redis.NewClient(
-			&redis.Options{
-				Addr:     redisNodeAddr,
-				Password: redisNodePass,
-			},
-		),
+func New(conf config.RedisOpts) (*Client, error) {
+	options := &redis.Options{Addr: conf.NodeAddr}
+
+	password, err := conf.LoadPassword()
+	if err != nil {
+		return nil, err
 	}
+	options.Username = conf.Username
+	options.Password = password
+
+	tlsConfig, err := conf.LoadTLS()
+	if err != nil {
+		return nil, err
+	}
+	options.TLSConfig = tlsConfig
+	return &Client{conf.NodeAddr, redis.NewClient(options)}, nil
 }

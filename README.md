@@ -6,14 +6,15 @@ Nomad and Consul.
 - Create a new cluster when no cluster is present
 - Add new primary node and perform a shard slot rebalance
 - Add new replica node to the primary node with the least replicas
+- Full support for Redis mTLS and ACL Auth
+- Full support for Consul mTLS and ACL Tokens
 
 #### To Do
-- Drain and failover and FORGET an existing primary node
-- Remove and FORGET an existing replica node
-- Redis ACL
-- Redis Password
-- Redis mTLS
-- Redis Static ClusterHub Port selection (from Nomad Job Specification)
+- [x] Redis ACL
+- [x] Redis Password
+- [x] Redis mTLS
+- [ ] Drain, failover, and FORGET an existing primary node
+- [ ] Remove and FORGET an existing replica node
 
 ### `attache-check`
 A sidecar that servers an HTTP API that allows Consul to track the health of
@@ -23,13 +24,24 @@ once they've joined a cluster.
 
 #### Usage
 ```shell
+$ attache-check -help
 Usage of ./attache-check:
   -check-serv-addr string
-      address this utility should listen on
+    	address this utility should listen on (e.g. 127.0.0.1:8080)
+  -redis-auth-password-file string
+    	redis-server password file path, (required)
+  -redis-auth-username string
+    	redis-server username, (required)
   -redis-node-addr string
-      redis-server listening address
+    	redis-server listening address, (required)
+  -redis-tls-ca-cert string
+    	Redis client CA certificate file, (required)
+  -redis-tls-cert-file string
+    	Redis client certificate file, (required)
+  -redis-tls-key-file string
+    	Redis client key file, (required)
   -shutdown-grace duration
-      duration to wait before shutting down (e.g. '1s') (default 5s)
+    	duration to wait before shutting down (e.g. '1s') (default 5s)
 ```
 
 ### `attache-control`
@@ -48,7 +60,7 @@ Usage of ./attache-control:
   -attempt-limit int
     	Number of times to attempt joining or creating a cluster before exiting (default 20)
   -await-service-name string
-    	Consul Service for any newly created Redis Cluster Nodes
+    	Consul Service for newly created Redis Cluster Nodes, (required)
   -consul-acl-token string
     	Consul client ACL token
   -consul-addr string
@@ -60,26 +72,41 @@ Usage of ./attache-control:
   -consul-tls-cert string
     	Consul client certificate file
   -consul-tls-enable
-    	Enable TLS for the Consul client
+    	Enable mTLS for the Consul client
   -consul-tls-key string
     	Consul client key file
   -dest-service-name string
-    	Consul Service for any existing Redis Cluster Nodes
+    	Consul Service for healthy Redis Cluster Nodes, (required)
   -lock-kv-path string
-    	KV path used by Consul to aquire a distributed lock for operations (default "service/attache/leader")
+    	Consul KV path used as a distributed lock for operations (default "service/attache/leader")
   -log-level string
     	Set the log level (default "info")
+  -redis-auth-password-file string
+    	Redis password file path, (required)
+  -redis-auth-username string
+    	Redis username, (required)
   -redis-node-addr string
-    	redis-server listening address
+    	redis-server listening address, (required)
   -redis-primary-count int
-    	Total number of expected Redis shard primary nodes
+    	Total number of expected Redis shard primary nodes, (required)
   -redis-replica-count int
     	Total number of expected Redis shard replica nodes
+  -redis-tls-ca-cert string
+    	Redis client CA certificate file, (required)
+  -redis-tls-cert-file string
+    	Redis client certificate file, (required)
+  -redis-tls-key-file string
+    	Redis client key file, (required)
 ```
 
 ### Running the Example Nomad Job
-Note: these steps assume that you have the Nomad and Consul binaries installed
+Note: these steps assume that you have the `nomad` and `consul` binaries installed
 on your machine and that they exist in your `PATH`.
+
+Build the attache-control and attache-check binaries:
+```shell
+$ go build -o attache-check ./cmd/attache-check/main.go && go build -o attache-control ./cmd/attache-control/main.go ./cmd/attache-control/config.go
+```
 
 Start the Consul server in `dev` mode:
 ```shell
@@ -93,7 +120,7 @@ $ sudo nomad agent -dev -bind 0.0.0.0 -log-level ERROR -dc dev-general
 
 Start a Nomad job deployment:
 ```shell
-nomad job run -verbose ./example/redis-cluster.hcl
+$ nomad job run -verbose -var-file=./example/vars-file.hcl ./example/job-specification.hcl
 ```
 
 Open the Nomad UI: http://localhost:4646/ui
