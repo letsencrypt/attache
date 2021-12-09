@@ -81,6 +81,8 @@ redis-tls-key = <<-EOF
 EOF
 redis-config-template = <<-EOF
   user default off
+  masteruser replication-user
+  masterauth {{ env "redis-password" }}
   user replication-user  on +@all ~* >{{ env "redis-password" }}
   # Working Directory
   dir {{ env "NOMAD_ALLOC_DIR" }}/data/
