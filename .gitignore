@@ -48,3 +48,7 @@ attache-control
 
 # Mac
 *.DS_Store
+
+# Terraform
+*.terraform*
+*.tfstate*

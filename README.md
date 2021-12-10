@@ -25,7 +25,7 @@ once they've joined a cluster.
 #### Usage
 ```shell
 $ attache-check -help
-Usage of ./attache-check:
+Usage of attache-check:
   -check-serv-addr string
     	address this utility should listen on (e.g. 127.0.0.1:8080)
   -redis-auth-password-file string
@@ -49,11 +49,11 @@ An ephemeral sidecar that acts as an agent for each Redis node when it's
 started. If a node's `node info` reflects that of a new node, this agent will
 attempt to introduce it to an existing Redis Cluster, if it exists, else it will
 attempt to orchestrate the create a new Redis Cluster if there are enough new
-Redis Nodes (in the Await Consul Service) to do so.
+Redis nodes (in the Await Consul Service) to do so.
 
 #### Usage
 ```shell
-$ attache-control -help
+$ ./attache-control -help
 Usage of ./attache-control:
   -attempt-interval duration
     	Duration to wait between attempts to join or create a cluster (default 3s)
@@ -87,10 +87,6 @@ Usage of ./attache-control:
     	Redis username, (required)
   -redis-node-addr string
     	redis-server listening address, (required)
-  -redis-primary-count int
-    	Total number of expected Redis shard primary nodes, (required)
-  -redis-replica-count int
-    	Total number of expected Redis shard replica nodes
   -redis-tls-ca-cert string
     	Redis client CA certificate file, (required)
   -redis-tls-cert-file string
@@ -100,29 +96,52 @@ Usage of ./attache-control:
 ```
 
 ### Running the Example Nomad Job
-Note: these steps assume that you have the `nomad` and `consul` binaries installed
-on your machine and that they exist in your `PATH`.
+Note: these steps assume that you have the `nomad`, `consul`, and `terraform`
+binaries installed on your machine and that they exist in your `PATH`.
 
 Build the attache-control and attache-check binaries:
 ```shell
 $ go build -o attache-check ./cmd/attache-check/main.go && go build -o attache-control ./cmd/attache-control/main.go ./cmd/attache-control/config.go
 ```
 
-Start the Consul server in `dev` mode:
+In another shell, start the Consul server in `dev` mode:
 ```shell
 $ consul agent -dev -datacenter dev-general -log-level ERROR
 ```
 
-Start the Nomad server in `dev` mode:
+In another shell, start the Nomad server in `dev` mode:
 ```shell
 $ sudo nomad agent -dev -bind 0.0.0.0 -log-level ERROR -dc dev-general
 ```
 
-Start a Nomad job deployment:
+Start a Nomad job deployment using Terraform:
 ```shell
-$ nomad job run -verbose -var-file=./example/vars-file.hcl ./example/job-specification.hcl
+cd example
+terraform init
+terraform plan
+terraform apply
 ```
 
-Open the Nomad UI: http://localhost:4646/ui
+Open the Nomad UI: http://localhost:4646/ui to view information about the Redis
+Cluster deployment
 
-Open the Consul UI: http://localhost:8500/ui
+Open the Consul UI: http://localhost:8500/ui to view health check information
+for the Redis Cluster
+
+### Useful Commands
+
+#### Purge Nomad Job
+This is useful for stopping and garbage collecting a job in Nomad immediately.
+```shell
+nomad job stop -purge "<jobname>"
+```
+
+#### Count Primary Nodes
+```shell
+redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep master | wc -l
+```
+
+#### Count Replica Nodes
+```shell
+redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep slave | wc -l
+```

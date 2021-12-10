@@ -5,16 +5,17 @@ import (
 
 	consul "github.com/hashicorp/consul/api"
 	"github.com/letsencrypt/attache/src/consul/config"
+	"gopkg.in/yaml.v3"
 )
 
-type ServiceInfo struct {
-	client      *consul.Client
+// Client is a convenience wrapper for an inner `*consul.Client`.
+type Client struct {
+	*consul.Client
 	serviceName string
-	tagName     string
-	onlyHealthy bool
 }
 
-func New(conf config.ConsulOpts, serviceName, tagName string, onlyHealthy bool) (*ServiceInfo, error) {
+// New creates a new Consul client and returns a `*Client` to the caller.
+func New(conf config.ConsulOpts, serviceName string) (*Client, error) {
 	consulConfig, err := conf.MakeConsulConfig()
 	if err != nil {
 		return nil, err
@@ -24,20 +25,15 @@ func New(conf config.ConsulOpts, serviceName, tagName string, onlyHealthy bool) 
 	if err != nil {
 		return nil, err
 	}
-	return &ServiceInfo{client, serviceName, tagName, onlyHealthy}, nil
+	return &Client{client, serviceName}, nil
 }
 
-func (s *ServiceInfo) GetNodeAddresses() ([]string, error) {
-	nodes, _, err := s.client.Health().Service(
-		s.serviceName,
-		s.tagName,
-		s.onlyHealthy,
-		&consul.QueryOptions{
-			RequireConsistent: true,
-			AllowStale:        false,
-			UseCache:          false,
-		},
-	)
+// GetNodeAddresses queries the Consul Service Catalog for members of the
+// `s.ServiceName`, constructs a slice of addresses in the format <ip>:<port>
+// which it returns to the caller. When `onlyHealthy` is true Consul will only
+// return nodes that are currently passing all health checks.
+func (s *Client) GetNodeAddresses(onlyHealthy bool) ([]string, error) {
+	nodes, _, err := s.Health().Service(s.serviceName, "", onlyHealthy, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query consul for service %q: %w", s.serviceName, err)
 	}
@@ -47,4 +43,48 @@ func (s *ServiceInfo) GetNodeAddresses() ([]string, error) {
 		addresses = append(addresses, fmt.Sprintf("%s:%d", entry.Service.Address, entry.Service.Port))
 	}
 	return addresses, nil
+}
+
+// ScalingOpts defines the expected number of primary and replica nodes in the
+// Redis Cluster being orchestrated by Attaché.
+type ScalingOpts struct {
+	// PrimaryCount is the count of primary Redis nodes you expect to be present
+	// in the final Redis Cluster.
+	PrimaryCount int `yaml:"primary-count"`
+
+	// ReplicaCount is the count of replica Redis nodes you expect to be present
+	// in the final Redis Cluster.
+	ReplicaCount int `yaml:"replica-count"`
+}
+
+// TotalCount returns the total count of expected replica and primary Redis
+// Cluster nodes.
+func (s *ScalingOpts) TotalCount() int {
+	return s.PrimaryCount + s.ReplicaCount
+}
+
+// GetScalingOpts fetches the count of Redis primary and replica nodes from KV
+// path: "service/destServiceName/scaling", and return them as a `*ScalingOpts`
+// to the caller.
+func (c *Client) GetScalingOpts() (*ScalingOpts, error) {
+	kv := c.KV()
+
+	scalingOptsKey := fmt.Sprintf("service/%s/scaling", c.serviceName)
+	scalingOptsKV, _, err := kv.Get(scalingOptsKey, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get value for key %q: %w", scalingOptsKey, err)
+	}
+
+	// Per the consul API docs, the returned pointer will be nil if the key does
+	// not exist.
+	if scalingOptsKV == nil {
+		return nil, fmt.Errorf("key %q is not defined", scalingOptsKey)
+	}
+
+	var opts ScalingOpts
+	err = yaml.Unmarshal(scalingOptsKV.Value, &opts)
+	if err != nil {
+		return nil, err
+	}
+	return &opts, nil
 }

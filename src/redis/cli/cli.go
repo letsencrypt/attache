@@ -78,6 +78,7 @@ func execute(conf config.RedisOpts, command []string) error {
 	return nil
 }
 
+// CreateCluster uses the redis-cli to create a new Redis cluster.
 func CreateCluster(conf config.RedisOpts, nodes []string, replicasPerShard int) error {
 	var opts []string
 	opts = append(opts, "--cluster", "create")
@@ -86,6 +87,9 @@ func CreateCluster(conf config.RedisOpts, nodes []string, replicasPerShard int) 
 	return execute(conf, opts)
 }
 
+// AddNewShardPrimary introduces this Redis node (the node that this instance of
+// `attache-control` is acting as a sidecar to) to an existing Redis Cluster as
+// a new shard primary then rebalances the existing cluster shard slots.
 func AddNewShardPrimary(conf config.RedisOpts, destNodeAddr string) error {
 	err := execute(conf, []string{"--cluster", "add-node", conf.NodeAddr, destNodeAddr})
 	if err != nil {
@@ -111,6 +115,9 @@ func AddNewShardPrimary(conf config.RedisOpts, destNodeAddr string) error {
 	return nil
 }
 
+// AddNewShardReplica introduces this Redis node (the node that this instance of
+// `attache-control` is acting as a sidecar to) to an existing Redis Cluster as
+// a replica to the shard primary with the least number of replicas.
 func AddNewShardReplica(conf config.RedisOpts, destNodeAddr string) error {
 	clusterClient, err := client.New(
 		config.RedisOpts{

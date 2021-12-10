@@ -1,41 +1,45 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
 	consul "github.com/hashicorp/consul/api"
 )
 
-// ConsulOpts is exported for use with flag.Parse().
+// ConsulOpts contains the configuration for interacting with the Consul cluster
+// that Attaché uses for leader lock and to retrieve the scaling options in the
+// Consul KV store.
 type ConsulOpts struct {
-	DC        string
-	Address   string
-	ACLToken  string
+	// DC is the Consul datacenter used for API calls. This field is required.
+	DC string
+
+	// Address is the <address>:<port> that your Consul servers expect to
+	// recieve API calls on. This field is required.
+	Address string
+
+	// ACLToken is not required but if present will be passed as the token for
+	// API calls.
+	ACLToken string
+
+	// EnableTLS is not required but if set to true will enable mutual TLS for
+	// API calls.
 	EnableTLS bool
-	TLSCACert string
-	TLSCert   string
-	TLSKey    string
+
+	// TLSCACertFile is the path to a PEM formatted CA Certificate. Required
+	// when `EnableTLS` is true.
+	TLSCACertFile string
+
+	// TLSCertFile is the path to a PEM formatted Certificate. Required when
+	// `EnableTLS` is true.
+	TLSCertFile string
+
+	// TLSKeyFile is the path to a PEM formatted Private Key. Required when
+	// `EnableTLS` is true.
+	TLSKeyFile string
 }
 
-func (c *ConsulOpts) Validate() error {
-	if c.EnableTLS {
-		if c.TLSCACert == "" {
-			return errors.New("missing required opt: 'consul-tls-ca-cert")
-		}
-
-		if c.TLSCert == "" {
-			return errors.New("missing required opt: 'consul-tls-cert")
-		}
-
-		if c.TLSKey == "" {
-			return errors.New("missing required opt: 'consul-tls-key")
-		}
-	}
-	return nil
-}
-
+// MakeConsulConfig constructs a `*consul.Config`.
 func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 	config := consul.DefaultConfig()
 	config.Datacenter = c.DC
@@ -45,9 +49,9 @@ func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 		config.Scheme = "https"
 		tlsConfig := consul.TLSConfig{
 			Address:  c.Address,
-			CAFile:   c.TLSCACert,
-			CertFile: c.TLSCert,
-			KeyFile:  c.TLSKey,
+			CAFile:   c.TLSCACertFile,
+			CertFile: c.TLSCertFile,
+			KeyFile:  c.TLSKeyFile,
 		}
 		tlsClientConf, err := consul.SetupTLSConfig(&tlsConfig)
 		if err != nil {

@@ -1,24 +1,24 @@
 // await-service-name is the name of the Consul Service that Attache should
-// check for Redis Nodes that are waiting to join a Redis Cluster or waiting to
+// check for Redis nodes that are waiting to join a Redis Cluster or waiting to
 // form a new Redis Cluster.
 variable "await-service-name" {
   type = string
 }
 
 // dest-service-name is the name of the Consul Service that Attache should check
-// for Redis Nodes that are part of a Redis Cluster that new Redis Nodes should
+// for Redis nodes that are part of a Redis Cluster that new Redis nodes should
 // join.
 variable "dest-service-name" {
   type = string
 }
 
-// primary-count is the count of Redis Shard Primary Nodes that should exist in
+// primary-count is the count of Redis Shard primary nodes that should exist in
 // the resulting Redis Cluster.
 variable "primary-count" {
   type = number
 }
 
-// replica-count is the count of Redis Shard Replica Nodes that should exist in
+// replica-count is the count of Redis Shard replica nodes that should exist in
 // the resulting Redis Cluster.
 variable "replica-count" {
   type = number
@@ -188,8 +188,6 @@ job "redis-cluster" {
         command = "$${HOME}/repos/attache/attache-control"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
-          "-redis-primary-count", "${var.primary-count}",
-          "-redis-replica-count", "${var.replica-count}",
           "-dest-service-name", "${var.dest-service-name}",
           "-await-service-name", "${var.await-service-name}",
           "-redis-auth-username", "${var.redis-username}",

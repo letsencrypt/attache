@@ -15,12 +15,17 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-// CheckHandler is a wraps an inner redis client with some methods for handling
-// health check requests.
+// CheckHandler wraps an inner redis client and provides a method for handling a
+// health check request from Consul. It's exported for use with with a request
+// router.
 type CheckHandler struct {
 	redis.Client
 }
 
+// StateOK handles health checks from Consul. A 200 response from this handler
+// means that, from this Redis Cluster node's perspective, the Redis Cluster
+// State is OK and Consul can begin advertising this node as part of the Redis
+// Cluster in the Service Catalog.
 func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 	clusterInfo, err := h.GetClusterInfo()
 	if err != nil {
@@ -52,11 +57,29 @@ func main() {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	err := redisOpts.Validate()
-	if err != nil {
-		logger.Fatal(err)
+	if redisOpts.NodeAddr == "" {
+		logger.Fatal("missing required opt: 'redis-node-addr'")
 	}
 
+	if redisOpts.Username == "" {
+		logger.Fatal("missing required opt: 'redis-auth-username'")
+	}
+
+	if redisOpts.PasswordFile == "" {
+		logger.Fatal("missing required opt: 'redis-auth-password-file'")
+	}
+
+	if redisOpts.CACertFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-ca-cert'")
+	}
+
+	if redisOpts.CertFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-cert-file'")
+	}
+
+	if redisOpts.KeyFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-key-file'")
+	}
 	logger.Infof("starting %s", os.Args[0])
 
 	router := mux.NewRouter()

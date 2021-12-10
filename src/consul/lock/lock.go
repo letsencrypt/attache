@@ -6,6 +6,10 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
+// Lock is a convenience wrapper around an inner `*consul.Client` with methods
+// to aquire and release a mutually exclusive distributed lock using Consul
+// sessions. This is used by attache-control to ensure that only one Redis
+// Cluster node operation (create, add, remove) happens at once.
 type Lock struct {
 	client         *consul.Client
 	key            string
@@ -13,6 +17,8 @@ type Lock struct {
 	sessionTimeout string
 }
 
+// New creates a new Consul client, aquires an ephemeral session with that
+// client, and returns a `*Lock` to the caller.
 func New(conf config.ConsulOpts, key string, sessionTimeout string) (*Lock, error) {
 	consulConfig, err := conf.MakeConsulConfig()
 	if err != nil {
