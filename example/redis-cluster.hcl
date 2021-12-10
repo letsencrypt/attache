@@ -12,13 +12,13 @@ variable "dest-service-name" {
   type = string
 }
 
-// primary-count is the count of Redis Shard Primary nodes that should exist in
+// primary-count is the count of Redis Shard primary nodes that should exist in
 // the resulting Redis Cluster.
 variable "primary-count" {
   type = number
 }
 
-// replica-count is the count of Redis Shard Replica nodes that should exist in
+// replica-count is the count of Redis Shard replica nodes that should exist in
 // the resulting Redis Cluster.
 variable "replica-count" {
   type = number
