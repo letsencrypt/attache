@@ -40,8 +40,8 @@ type ConsulOpts struct {
 	TLSKeyFile string
 }
 
-// Validate checks that the required opts for the Consul API client were passed
-// via the CLI. User friendly errors are returned when this is not the case.
+// Validate checks that the required opts for the Consul API client are present.
+// User friendly errors are returned when this is not the case.
 func (c *ConsulOpts) Validate() error {
 	if c.EnableTLS {
 		if c.TLSCACertFile == "" {
@@ -62,8 +62,7 @@ func (c *ConsulOpts) Validate() error {
 	return nil
 }
 
-// MakeConsulConfig constructs a `*consul.Config` with the configuration passed
-// via the CLI.
+// MakeConsulConfig constructs a `*consul.Config`.
 func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 	config := consul.DefaultConfig()
 	config.Datacenter = c.DC

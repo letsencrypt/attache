@@ -26,13 +26,13 @@ variable "dest-service-name" {
 // primary-count is commented in the job specification.
 variable "primary-count" {
   type    = number
-  default = 5
+  default = 3
 }
 
 // replica-count is commented in the job specification.
 variable "replica-count" {
   type    = number
-  default = 5
+  default = 3
 }
 
 provider "consul" {

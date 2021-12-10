@@ -30,7 +30,7 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	setLogLevel(conf.LogLevel)
+	setLogLevel(conf.logLevel)
 	logger.Infof("starting %s", os.Args[0])
 
 	logger.Info("redis: initializing a new redis client")
@@ -41,9 +41,10 @@ func main() {
 
 	logger.Infof(
 		"consul: fetching scaling options from KV path service/%s/scaling",
-		conf.DestServiceName,
+		conf.destServiceName,
 	)
-	conf.ScalingOpts, err = scalingClient.GetScalingOpts(conf.ConsulOpts, conf.DestServiceName)
+
+	scalingOpts, err := scalingClient.GetScalingOpts(conf.ConsulOpts, conf.destServiceName)
 	if err != nil {
 		logger.Fatalf("consul: %s", err)
 	}
@@ -52,7 +53,7 @@ func main() {
 	var nodesInAwait []string
 
 	var attemptCount int
-	var ticks = time.Tick(conf.AttemptInterval)
+	var ticks = time.Tick(conf.attemptInterval)
 	for range ticks {
 		attemptCount++
 
@@ -66,7 +67,7 @@ func main() {
 			break
 		}
 
-		lock, err := lockClient.New(conf.ConsulOpts, conf.LockPath, "10s")
+		lock, err := lockClient.New(conf.ConsulOpts, conf.lockPath, "10s")
 		if err != nil {
 			logger.Fatalf("consul: %s", err)
 		}
@@ -104,7 +105,7 @@ func main() {
 			// Check the Consul service catalog for an existing Redis Cluster
 			// that we can join. We're limiting the scope of our search to nodes
 			// in the destService Consul service that Consul considers healthy.
-			destService, err := consulClient.New(conf.ConsulOpts, conf.DestServiceName, "", true)
+			destService, err := consulClient.New(conf.ConsulOpts, conf.destServiceName, "", true)
 			if err != nil {
 				cleanup()
 				logger.Fatal(err)
@@ -115,7 +116,7 @@ func main() {
 				cleanup()
 				logger.Fatal(err)
 			}
-			logger.Infof("consul: found nodes %q in service %q", nodesInDest, conf.DestServiceName)
+			logger.Infof("consul: found nodes %q in service %q", nodesInDest, conf.destServiceName)
 
 			// If 0 existing nodes can be found with this criteria, we know that
 			// we need to initialize a new cluster.
@@ -124,7 +125,7 @@ func main() {
 				// waiting to form a cluster. We're limiting the scope of our
 				// search to nodes in the awaitService Consul service that
 				// Consul considers healthy.
-				awaitService, err := consulClient.New(conf.ConsulOpts, conf.AwaitServiceName, "", true)
+				awaitService, err := consulClient.New(conf.ConsulOpts, conf.awaitServiceName, "", true)
 				if err != nil {
 					cleanup()
 					logger.Fatal(err)
@@ -135,14 +136,14 @@ func main() {
 					cleanup()
 					logger.Fatalf("consul: %s", err)
 				}
-				logger.Infof("consul: found nodes %q in service %q", nodesInAwait, conf.AwaitServiceName)
+				logger.Infof("consul: found nodes %q in service %q", nodesInAwait, conf.awaitServiceName)
 
 				// We should only attempt to initialize a new cluster if all of
 				// the nodes that we expect in said cluster have finished
 				// starting up and reside in the awaitService Consul service.
-				nodesMissing := conf.ScalingOpts.TotalCount() - len(nodesInAwait)
+				nodesMissing := scalingOpts.TotalCount() - len(nodesInAwait)
 				if nodesMissing <= 0 {
-					replicasPerPrimary := conf.ScalingOpts.ReplicaCount / conf.ScalingOpts.PrimaryCount
+					replicasPerPrimary := scalingOpts.ReplicaCount / scalingOpts.PrimaryCount
 
 					var nodesToCluster []string
 					if replicasPerPrimary == 0 {
@@ -152,7 +153,7 @@ func main() {
 						// only cluster is started and the lock is released our
 						// remaining replica nodes will be able to add
 						// themselves to the newly created cluster.
-						nodesToCluster = nodesInAwait[:conf.ScalingOpts.PrimaryCount]
+						nodesToCluster = nodesInAwait[:scalingOpts.PrimaryCount]
 					} else {
 						nodesToCluster = nodesInAwait
 					}
@@ -199,7 +200,7 @@ func main() {
 				logger.Fatalf("redis: %s", err)
 			}
 
-			if len(primaryNodesInCluster) < conf.ScalingOpts.PrimaryCount {
+			if len(primaryNodesInCluster) < scalingOpts.PrimaryCount {
 				// The current cluster has less than `shardPrimaryCount` shard
 				// primary nodes. This node should be added as a new primary and
 				// the existing cluster shardslots should be rebalanced.
@@ -215,7 +216,7 @@ func main() {
 				cleanup()
 				break
 
-			} else if len(replicaNodesInCluster) < conf.ScalingOpts.ReplicaCount {
+			} else if len(replicaNodesInCluster) < scalingOpts.ReplicaCount {
 				// All `shardPrimaryCount` shard primary nodes exist in the
 				// current cluster. This node should be added as a replica to
 				// the primary node with the least number of replicas.
@@ -232,11 +233,11 @@ func main() {
 				break
 			}
 		} else {
-			if attemptCount >= conf.AttemptLimit {
+			if attemptCount >= conf.attemptLimit {
 				logger.Fatal("failed to join or initialize a cluster during the time permitted")
 			}
 			logger.Info("another node currently has the lock")
-			logger.Infof("continuing to wait, %d attempts remain", (conf.AttemptLimit - attemptCount))
+			logger.Infof("continuing to wait, %d attempts remain", (conf.attemptLimit - attemptCount))
 		}
 	}
 

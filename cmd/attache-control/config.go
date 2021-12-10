@@ -6,37 +6,35 @@ import (
 	"time"
 
 	c "github.com/letsencrypt/attache/src/consul/config"
-	s "github.com/letsencrypt/attache/src/consul/scaling"
 	r "github.com/letsencrypt/attache/src/redis/config"
 )
 
-// CLIOpts contains all of the configuration used to orchestrate the Redis
-// Cluster under management by Attaché. It's fields are exported for use with
-// `flag.Parse()`.
-type CLIOpts struct {
-	// LockPath is the Consul KV path to use as a leader lock for Redis Cluster
+// cliOpts contains all of the configuration used to orchestrate the Redis
+// Cluster under management by Attaché.
+type cliOpts struct {
+	// lockPath is the Consul KV path to use as a leader lock for Redis Cluster
 	// operations.
-	LockPath string
+	lockPath string
 
-	// AttemptInterval is duration to wait between attempts to join or create a
+	// attemptInterval is duration to wait between attempts to join or create a
 	// cluster.
-	AttemptInterval time.Duration
+	attemptInterval time.Duration
 
-	// Number of times to attempt joining or creating a cluster before Attache
+	// attemptLimit is the number of times to attempt joining or creating a cluster before Attache
 	// should exit as failed.
-	AttemptLimit int
+	attemptLimit int
 
-	// AwaitServiceName is the name of the Consul Service that newly created
+	// awaitServiceName is the name of the Consul Service that newly created
 	// Redis Cluster nodes will join when they're first started but have yet to
 	// form or join a cluster. This field is required.
-	AwaitServiceName string
+	awaitServiceName string
 
-	// DestServiceName is the name of the Consul Service that Redis Cluster
+	// destServiceName is the name of the Consul Service that Redis Cluster
 	// nodes will join once they are part of a cluster. This field is required.
-	DestServiceName string
+	destServiceName string
 
-	// LogLevel is the level that Attaché should log at.
-	LogLevel string
+	// logLevel is the level that Attaché should log at.
+	logLevel string
 
 	// RedisOpts contains the configuration for interacting with the node this
 	// serves as a sidecar to and, if one exists, the Redis Cluster. This field
@@ -47,20 +45,16 @@ type CLIOpts struct {
 	// cluster that Attaché uses for leader lock and to retrieve the scaling
 	// options in the Consul KV store. This field is required.
 	ConsulOpts c.ConsulOpts
-
-	// ScalingOpts defines the expected number of primary and replica nodes in
-	// the Redis Cluster being orchestrated by Attaché. This field is required.
-	ScalingOpts *s.ScalingOpts
 }
 
 // Validate checks that the required opts for `attache-control` were passed via
 // the CLI. User friendly errors are returned when this is not the case.
-func (c CLIOpts) Validate() error {
-	if c.DestServiceName == "" {
+func (c cliOpts) Validate() error {
+	if c.destServiceName == "" {
 		return errors.New("missing required opt: 'dest-service-name'")
 	}
 
-	if c.AwaitServiceName == "" {
+	if c.awaitServiceName == "" {
 		return errors.New("missing required opt: 'await-service-name'")
 	}
 
@@ -76,16 +70,16 @@ func (c CLIOpts) Validate() error {
 	return nil
 }
 
-func ParseFlags() CLIOpts {
-	var conf CLIOpts
+func ParseFlags() cliOpts {
+	var conf cliOpts
 
 	// CLI
-	flag.StringVar(&conf.LockPath, "lock-kv-path", "service/attache/leader", "Consul KV path to use as a leader lock for Redis Cluster operations")
-	flag.DurationVar(&conf.AttemptInterval, "attempt-interval", 3*time.Second, "Duration to wait between attempts to join or create a cluster (e.g. '1s')")
-	flag.IntVar(&conf.AttemptLimit, "attempt-limit", 20, "Number of times to attempt for or join a cluster before exiting")
-	flag.StringVar(&conf.AwaitServiceName, "await-service-name", "", "Consul Service for newly created Redis Cluster Nodes, (required)")
-	flag.StringVar(&conf.DestServiceName, "dest-service-name", "", "Consul Service for healthy Redis Cluster Nodes, (required)")
-	flag.StringVar(&conf.LogLevel, "log-level", "info", "Set the log level")
+	flag.StringVar(&conf.lockPath, "lock-kv-path", "service/attache/leader", "Consul KV path to use as a leader lock for Redis Cluster operations")
+	flag.DurationVar(&conf.attemptInterval, "attempt-interval", 3*time.Second, "Duration to wait between attempts to join or create a cluster (e.g. '1s')")
+	flag.IntVar(&conf.attemptLimit, "attempt-limit", 20, "Number of times to attempt for or join a cluster before exiting")
+	flag.StringVar(&conf.awaitServiceName, "await-service-name", "", "Consul Service for newly created Redis Cluster Nodes, (required)")
+	flag.StringVar(&conf.destServiceName, "dest-service-name", "", "Consul Service for healthy Redis Cluster Nodes, (required)")
+	flag.StringVar(&conf.logLevel, "log-level", "info", "Set the log level")
 
 	// Redis
 	flag.StringVar(&conf.RedisOpts.NodeAddr, "redis-node-addr", "", "redis-server listening address, (required)")
