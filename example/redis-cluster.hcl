@@ -188,8 +188,6 @@ job "redis-cluster" {
         command = "$${HOME}/repos/attache/attache-control"
         args = [
           "-redis-node-addr", "${NOMAD_ADDR_db}",
-          "-redis-primary-count", "${var.primary-count}",
-          "-redis-replica-count", "${var.replica-count}",
           "-dest-service-name", "${var.dest-service-name}",
           "-await-service-name", "${var.await-service-name}",
           "-redis-auth-username", "${var.redis-username}",

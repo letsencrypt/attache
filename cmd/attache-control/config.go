@@ -24,10 +24,6 @@ type CLIOpts struct {
 }
 
 func (c CLIOpts) Validate() error {
-	if c.RedisPrimaryCount == 0 {
-		return errors.New("missing required opt: 'redis-primary-count'")
-	}
-
 	if c.DestServiceName == "" {
 		return errors.New("missing required opt: 'dest-service-name'")
 	}
@@ -52,8 +48,6 @@ func ParseFlags() CLIOpts {
 	var conf CLIOpts
 
 	// CLI
-	flag.IntVar(&conf.RedisPrimaryCount, "redis-primary-count", 0, "Total number of expected Redis shard primary nodes, (required)")
-	flag.IntVar(&conf.RedisReplicaCount, "redis-replica-count", 0, "Total number of expected Redis shard replica nodes")
 	flag.StringVar(&conf.LockPath, "lock-kv-path", "service/attache/leader", "Consul KV path used as a distributed lock for operations")
 	flag.DurationVar(&conf.AttemptInterval, "attempt-interval", 3*time.Second, "Duration to wait between attempts to join or create a cluster")
 	flag.IntVar(&conf.AttemptLimit, "attempt-limit", 20, "Number of times to attempt joining or creating a cluster before exiting")

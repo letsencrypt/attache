@@ -5,8 +5,9 @@ import (
 	"os/signal"
 	"time"
 
-	consulClient "github.com/letsencrypt/attache/src/consul/client"
 	lockClient "github.com/letsencrypt/attache/src/consul/lock"
+	scaling "github.com/letsencrypt/attache/src/consul/scaling"
+	consulClient "github.com/letsencrypt/attache/src/consul/service"
 	redisCLI "github.com/letsencrypt/attache/src/redis/cli"
 	redisClient "github.com/letsencrypt/attache/src/redis/client"
 	"github.com/letsencrypt/attache/src/redis/config"
@@ -37,6 +38,13 @@ func main() {
 	if err != nil {
 		logger.Fatalf("redis: %s", err)
 	}
+
+	pc, rc, err := scaling.GetOpts(conf.ConsulOpts, conf.DestServiceName)
+	if err != nil {
+		logger.Fatalf("consul: %s", err)
+	}
+	conf.RedisPrimaryCount = pc
+	conf.RedisReplicaCount = rc
 
 	var nodesInDest []string
 	var nodesInAwait []string
