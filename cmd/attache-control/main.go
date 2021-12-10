@@ -5,9 +5,8 @@ import (
 	"os/signal"
 	"time"
 
+	consulClient "github.com/letsencrypt/attache/src/consul/client"
 	lockClient "github.com/letsencrypt/attache/src/consul/lock"
-	scalingClient "github.com/letsencrypt/attache/src/consul/scaling"
-	consulClient "github.com/letsencrypt/attache/src/consul/service"
 	redisCLI "github.com/letsencrypt/attache/src/redis/cli"
 	redisClient "github.com/letsencrypt/attache/src/redis/client"
 	"github.com/letsencrypt/attache/src/redis/config"
@@ -40,11 +39,21 @@ func main() {
 	}
 
 	logger.Infof(
+		"consul: initializing a new consul client",
+		conf.destServiceName,
+	)
+
+	destService, err := consulClient.New(conf.ConsulOpts, conf.destServiceName)
+	if err != nil {
+		logger.Fatalf("consul: %s", err)
+	}
+
+	logger.Infof(
 		"consul: fetching scaling options from KV path service/%s/scaling",
 		conf.destServiceName,
 	)
 
-	scalingOpts, err := scalingClient.GetScalingOpts(conf.ConsulOpts, conf.destServiceName)
+	scalingOpts, err := destService.GetScalingOpts()
 	if err != nil {
 		logger.Fatalf("consul: %s", err)
 	}
@@ -105,13 +114,7 @@ func main() {
 			// Check the Consul service catalog for an existing Redis Cluster
 			// that we can join. We're limiting the scope of our search to nodes
 			// in the destService Consul service that Consul considers healthy.
-			destService, err := consulClient.New(conf.ConsulOpts, conf.destServiceName, "", true)
-			if err != nil {
-				cleanup()
-				logger.Fatal(err)
-			}
-
-			nodesInDest, err = destService.GetNodeAddresses()
+			nodesInDest, err = destService.GetNodeAddresses(true)
 			if err != nil {
 				cleanup()
 				logger.Fatal(err)
@@ -125,13 +128,13 @@ func main() {
 				// waiting to form a cluster. We're limiting the scope of our
 				// search to nodes in the awaitService Consul service that
 				// Consul considers healthy.
-				awaitService, err := consulClient.New(conf.ConsulOpts, conf.awaitServiceName, "", true)
+				awaitService, err := consulClient.New(conf.ConsulOpts, conf.awaitServiceName)
 				if err != nil {
 					cleanup()
 					logger.Fatal(err)
 				}
 
-				nodesInAwait, err = awaitService.GetNodeAddresses()
+				nodesInAwait, err = awaitService.GetNodeAddresses(true)
 				if err != nil {
 					cleanup()
 					logger.Fatalf("consul: %s", err)
@@ -201,9 +204,9 @@ func main() {
 			}
 
 			if len(primaryNodesInCluster) < scalingOpts.PrimaryCount {
-				// The current cluster has less than `shardPrimaryCount` shard
-				// primary nodes. This node should be added as a new primary and
-				// the existing cluster shardslots should be rebalanced.
+				// The current cluster has less than the expected shard primary
+				// nodes. This node should be added as a new primary and the
+				// existing cluster shardslots should be rebalanced.
 				logger.Infof("redis: node %q should be added as a new shard primary", conf.RedisOpts.NodeAddr)
 				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 
@@ -217,9 +220,9 @@ func main() {
 				break
 
 			} else if len(replicaNodesInCluster) < scalingOpts.ReplicaCount {
-				// All `shardPrimaryCount` shard primary nodes exist in the
-				// current cluster. This node should be added as a replica to
-				// the primary node with the least number of replicas.
+				// All expected shard primary nodes exist in the current
+				// cluster. This node should be added as a replica to the
+				// primary node with the least number of replicas.
 				logger.Infof("redis: node %q should be added as a new shard replica", conf.RedisOpts.NodeAddr)
 				logger.Infof("redis: attempting to join %q to the cluster that %q belongs to", conf.RedisOpts.NodeAddr, nodesInDest[0])
 

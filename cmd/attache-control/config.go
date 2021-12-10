@@ -58,14 +58,46 @@ func (c cliOpts) Validate() error {
 		return errors.New("missing required opt: 'await-service-name'")
 	}
 
-	err := c.ConsulOpts.Validate()
-	if err != nil {
-		return err
+	if c.ConsulOpts.EnableTLS {
+		if c.ConsulOpts.TLSCACertFile == "" {
+			return errors.New("missing required opt: 'consul-tls-ca-cert")
+		}
+
+		if c.ConsulOpts.TLSCertFile == "" {
+			return errors.New("missing required opt: 'consul-tls-cert")
+		}
+
+		if c.ConsulOpts.TLSKeyFile == "" {
+			return errors.New("missing required opt: 'consul-tls-key")
+		}
 	}
 
-	err = c.RedisOpts.Validate()
-	if err != nil {
-		return err
+	if !c.ConsulOpts.EnableTLS && (c.ConsulOpts.TLSCACertFile != "" || c.ConsulOpts.TLSCertFile != "" || c.ConsulOpts.TLSKeyFile != "") {
+		return errors.New("missing required opt: 'consul-tls-enable")
+	}
+
+	if c.RedisOpts.NodeAddr == "" {
+		return errors.New("missing required opt: 'redis-node-addr'")
+	}
+
+	if c.RedisOpts.Username == "" {
+		return errors.New("missing required opt: 'redis-auth-username'")
+	}
+
+	if c.RedisOpts.PasswordFile == "" {
+		return errors.New("missing required opt: 'redis-auth-password-file'")
+	}
+
+	if c.RedisOpts.CACertFile == "" {
+		return errors.New("missing required opt: 'redis-tls-ca-cert'")
+	}
+
+	if c.RedisOpts.CertFile == "" {
+		return errors.New("missing required opt: 'redis-tls-cert-file'")
+	}
+
+	if c.RedisOpts.KeyFile == "" {
+		return errors.New("missing required opt: 'redis-tls-key-file'")
 	}
 	return nil
 }

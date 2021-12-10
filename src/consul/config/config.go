@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -38,28 +37,6 @@ type ConsulOpts struct {
 	// TLSKeyFile is the path to a PEM formatted Private Key. Required when
 	// `EnableTLS` is true.
 	TLSKeyFile string
-}
-
-// Validate checks that the required opts for the Consul API client are present.
-// User friendly errors are returned when this is not the case.
-func (c *ConsulOpts) Validate() error {
-	if c.EnableTLS {
-		if c.TLSCACertFile == "" {
-			return errors.New("missing required opt: 'consul-tls-ca-cert")
-		}
-
-		if c.TLSCertFile == "" {
-			return errors.New("missing required opt: 'consul-tls-cert")
-		}
-
-		if c.TLSKeyFile == "" {
-			return errors.New("missing required opt: 'consul-tls-key")
-		}
-	}
-	if !c.EnableTLS && (c.TLSCACertFile != "" || c.TLSCertFile != "" || c.TLSKeyFile != "") {
-		return errors.New("missing required opt: 'consul-tls-enable")
-	}
-	return nil
 }
 
 // MakeConsulConfig constructs a `*consul.Config`.

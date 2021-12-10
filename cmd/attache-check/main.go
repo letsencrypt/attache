@@ -57,11 +57,29 @@ func main() {
 		logger.Fatal("Missing required opt 'check-serv-addr'")
 	}
 
-	err := redisOpts.Validate()
-	if err != nil {
-		logger.Fatal(err)
+	if redisOpts.NodeAddr == "" {
+		logger.Fatal("missing required opt: 'redis-node-addr'")
 	}
 
+	if redisOpts.Username == "" {
+		logger.Fatal("missing required opt: 'redis-auth-username'")
+	}
+
+	if redisOpts.PasswordFile == "" {
+		logger.Fatal("missing required opt: 'redis-auth-password-file'")
+	}
+
+	if redisOpts.CACertFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-ca-cert'")
+	}
+
+	if redisOpts.CertFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-cert-file'")
+	}
+
+	if redisOpts.KeyFile == "" {
+		logger.Fatal("missing required opt: 'redis-tls-key-file'")
+	}
 	logger.Infof("starting %s", os.Args[0])
 
 	router := mux.NewRouter()

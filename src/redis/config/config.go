@@ -3,7 +3,6 @@ package config
 import (
 	"crypto/tls"
 	"crypto/x509"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -28,36 +27,6 @@ type RedisOpts struct {
 	// redis-go client and redis-cli to interact with Redis nodes using mutual
 	// TLS. This field is required.
 	TLSConfig
-}
-
-// Validate checks that the required opts for interacting with Redis nodes via
-// go-redis client and redis-cli were provided. User friendly errors are
-// returned when this is not the case.
-func (c RedisOpts) Validate() error {
-	if c.NodeAddr == "" {
-		return errors.New("missing required opt: 'redis-node-addr'")
-	}
-
-	if c.Username == "" {
-		return errors.New("missing required opt: 'redis-auth-username'")
-	}
-
-	if c.PasswordFile == "" {
-		return errors.New("missing required opt: 'redis-auth-password-file'")
-	}
-
-	if c.CACertFile == "" {
-		return errors.New("missing required opt: 'redis-tls-ca-cert'")
-	}
-
-	if c.CertFile == "" {
-		return errors.New("missing required opt: 'redis-tls-cert-file'")
-	}
-
-	if c.KeyFile == "" {
-		return errors.New("missing required opt: 'redis-tls-key-file'")
-	}
-	return nil
 }
 
 // PasswordConfig contains a path to a file containing a password used for
