@@ -49,7 +49,7 @@ An ephemeral sidecar that acts as an agent for each Redis node when it's
 started. If a node's `node info` reflects that of a new node, this agent will
 attempt to introduce it to an existing Redis Cluster, if it exists, else it will
 attempt to orchestrate the create a new Redis Cluster if there are enough new
-Redis Nodes (in the Await Consul Service) to do so.
+Redis nodes (in the Await Consul Service) to do so.
 
 #### Usage
 ```shell
@@ -133,15 +133,15 @@ for the Redis Cluster
 #### Purge Nomad Job
 This is useful for stopping and garbage collecting a job in Nomad immediately.
 ```shell
-nomad job stop -purge "redis-cluster"
+nomad job stop -purge "<jobname>"
 ```
 
 #### Count Primary Nodes
 ```shell
-redis-cli -p 24393 --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass 435e9c4225f08813ef3af7c725f0d30d263b9cd3 cluster nodes | grep master | wc -l
+redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep master | wc -l
 ```
 
 #### Count Replica Nodes
 ```shell
-redis-cli -p 24393 --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass 435e9c4225f08813ef3af7c725f0d30d263b9cd3 cluster nodes | grep slave | wc -l
+redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep slave | wc -l
 ```

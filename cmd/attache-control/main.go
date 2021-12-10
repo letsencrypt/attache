@@ -6,7 +6,7 @@ import (
 	"time"
 
 	lockClient "github.com/letsencrypt/attache/src/consul/lock"
-	scaling "github.com/letsencrypt/attache/src/consul/scaling"
+	scalingClient "github.com/letsencrypt/attache/src/consul/scaling"
 	consulClient "github.com/letsencrypt/attache/src/consul/service"
 	redisCLI "github.com/letsencrypt/attache/src/redis/cli"
 	redisClient "github.com/letsencrypt/attache/src/redis/client"
@@ -33,18 +33,20 @@ func main() {
 	setLogLevel(conf.LogLevel)
 	logger.Infof("starting %s", os.Args[0])
 
-	logger.Info("consul: setting up a redis client")
+	logger.Info("redis: initializing a new redis client")
 	newNodeClient, err := redisClient.New(conf.RedisOpts)
 	if err != nil {
 		logger.Fatalf("redis: %s", err)
 	}
 
-	pc, rc, err := scaling.GetOpts(conf.ConsulOpts, conf.DestServiceName)
+	logger.Infof(
+		"consul: fetching scaling options from KV path service/%s/scaling",
+		conf.DestServiceName,
+	)
+	conf.ScalingOpts, err = scalingClient.GetScalingOpts(conf.ConsulOpts, conf.DestServiceName)
 	if err != nil {
 		logger.Fatalf("consul: %s", err)
 	}
-	conf.RedisPrimaryCount = pc
-	conf.RedisReplicaCount = rc
 
 	var nodesInDest []string
 	var nodesInAwait []string
@@ -138,9 +140,9 @@ func main() {
 				// We should only attempt to initialize a new cluster if all of
 				// the nodes that we expect in said cluster have finished
 				// starting up and reside in the awaitService Consul service.
-				nodesMissing := (conf.RedisPrimaryCount + conf.RedisReplicaCount) - len(nodesInAwait)
+				nodesMissing := conf.ScalingOpts.TotalCount() - len(nodesInAwait)
 				if nodesMissing <= 0 {
-					replicasPerPrimary := conf.RedisReplicaCount / conf.RedisPrimaryCount
+					replicasPerPrimary := conf.ScalingOpts.ReplicaCount / conf.ScalingOpts.PrimaryCount
 
 					var nodesToCluster []string
 					if replicasPerPrimary == 0 {
@@ -150,7 +152,7 @@ func main() {
 						// only cluster is started and the lock is released our
 						// remaining replica nodes will be able to add
 						// themselves to the newly created cluster.
-						nodesToCluster = nodesInAwait[:conf.RedisPrimaryCount]
+						nodesToCluster = nodesInAwait[:conf.ScalingOpts.PrimaryCount]
 					} else {
 						nodesToCluster = nodesInAwait
 					}
@@ -197,7 +199,7 @@ func main() {
 				logger.Fatalf("redis: %s", err)
 			}
 
-			if len(primaryNodesInCluster) < conf.RedisPrimaryCount {
+			if len(primaryNodesInCluster) < conf.ScalingOpts.PrimaryCount {
 				// The current cluster has less than `shardPrimaryCount` shard
 				// primary nodes. This node should be added as a new primary and
 				// the existing cluster shardslots should be rebalanced.
@@ -213,7 +215,7 @@ func main() {
 				cleanup()
 				break
 
-			} else if len(replicaNodesInCluster) < conf.RedisReplicaCount {
+			} else if len(replicaNodesInCluster) < conf.ScalingOpts.ReplicaCount {
 				// All `shardPrimaryCount` shard primary nodes exist in the
 				// current cluster. This node should be added as a replica to
 				// the primary node with the least number of replicas.

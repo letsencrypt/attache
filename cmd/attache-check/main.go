@@ -15,12 +15,17 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-// CheckHandler is a wraps an inner redis client with some methods for handling
-// health check requests.
+// CheckHandler wraps an inner redis client and provides a method for handling a
+// health check request from Consul. It's exported for use with with a request
+// router.
 type CheckHandler struct {
 	redis.Client
 }
 
+// StateOK handles health checks from Consul. A 200 response from this handler
+// means that, from this Redis Cluster node's perspective, the Redis Cluster
+// State is OK and Consul can begin advertising this node as part of the Redis
+// Cluster in the Service Catalog.
 func (h *CheckHandler) StateOk(w http.ResponseWriter, r *http.Request) {
 	clusterInfo, err := h.GetClusterInfo()
 	if err != nil {

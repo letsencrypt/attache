@@ -7,6 +7,8 @@ import (
 	"github.com/letsencrypt/attache/src/consul/config"
 )
 
+// ServiceInfo is a convenience wrapper for an inner `*consul.Client` with
+// fields used to filter queries to Consul's Service Catalog API.
 type ServiceInfo struct {
 	client      *consul.Client
 	serviceName string
@@ -14,6 +16,7 @@ type ServiceInfo struct {
 	onlyHealthy bool
 }
 
+// New creates a new Consul client and returns a `*ServiceInfo` to the caller.
 func New(conf config.ConsulOpts, serviceName, tagName string, onlyHealthy bool) (*ServiceInfo, error) {
 	consulConfig, err := conf.MakeConsulConfig()
 	if err != nil {
@@ -27,6 +30,9 @@ func New(conf config.ConsulOpts, serviceName, tagName string, onlyHealthy bool) 
 	return &ServiceInfo{client, serviceName, tagName, onlyHealthy}, nil
 }
 
+// GetNodeAddresses queries the Consul Service Catalog for members of the
+// `s.ServiceName`, constructs a slice of addresses in the format <ip>:<port>
+// which it returns to the caller.
 func (s *ServiceInfo) GetNodeAddresses() ([]string, error) {
 	nodes, _, err := s.client.Health().Service(
 		s.serviceName,
