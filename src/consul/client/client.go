@@ -14,7 +14,7 @@ type Client struct {
 	serviceName string
 }
 
-// New creates a new Consul client and returns a `*ServiceInfo` to the caller.
+// New creates a new Consul client and returns a `*Client` to the caller.
 func New(conf config.ConsulOpts, serviceName string) (*Client, error) {
 	consulConfig, err := conf.MakeConsulConfig()
 	if err != nil {
