@@ -86,5 +86,5 @@ func (c *Client) GetScalingOpts() (*ScalingOpts, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &ScalingOpts{opts.PrimaryCount, opts.ReplicaCount}, nil
+	return &opts, nil
 }
