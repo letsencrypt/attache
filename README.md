@@ -64,7 +64,7 @@ Usage of ./attache-control:
   -consul-acl-token string
     	Consul client ACL token
   -consul-addr string
-    	Consul client address (default "127.0.0.1:8500")
+    	Consul client address (default "127.0.0.1:8501")
   -consul-dc string
     	Consul client datacenter (default "dev-general")
   -consul-tls-ca-cert string
@@ -125,7 +125,7 @@ terraform apply
 Open the Nomad UI: http://localhost:4646/ui to view information about the Redis
 Cluster deployment
 
-Open the Consul UI: http://localhost:8500/ui to view health check information
+Open the Consul UI: http://localhost:8501/ui to view health check information
 for the Redis Cluster
 
 ### Useful Commands

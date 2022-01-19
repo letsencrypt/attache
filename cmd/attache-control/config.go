@@ -123,7 +123,7 @@ func ParseFlags() cliOpts {
 
 	// Consul
 	flag.StringVar(&conf.ConsulOpts.DC, "consul-dc", "dev-general", "Consul client datacenter")
-	flag.StringVar(&conf.ConsulOpts.Address, "consul-addr", "127.0.0.1:8500", "Consul client address")
+	flag.StringVar(&conf.ConsulOpts.Address, "consul-addr", "127.0.0.1:8501", "Consul client address")
 	flag.StringVar(&conf.ConsulOpts.ACLToken, "consul-acl-token", "", "Consul client ACL token")
 	flag.BoolVar(&conf.ConsulOpts.EnableTLS, "consul-tls-enable", false, "Enable mTLS for the Consul client (requires 'consul-tls-ca-cert', 'consul-tls-cert', 'consul-tls-key')")
 	flag.StringVar(&conf.ConsulOpts.TLSCACertFile, "consul-tls-ca-cert", "", "Consul client CA certificate file")
