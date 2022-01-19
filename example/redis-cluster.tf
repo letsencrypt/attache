@@ -36,8 +36,12 @@ variable "replica-count" {
 }
 
 provider "consul" {
-  address    = "127.0.0.1:8500"
+  address    = "127.0.0.1:8501"
   datacenter = var.datacenter
+  scheme     = "https"
+  ca_file    = "tls/consul/consul-agent-ca.pem"
+  cert_file  = "tls/attache/consul/dev-general-client-consul-0.pem"
+  key_file   = "tls/attache/consul/dev-general-client-consul-0-key.pem"
 }
 
 provider "nomad" {
@@ -63,13 +67,13 @@ resource "nomad_job" "redis-cluster" {
   hcl2 {
     enabled = true
     vars = {
-      await-service-name     = var.await-service-name
-      dest-service-name      = var.dest-service-name
-      primary-count          = var.primary-count
-      replica-count          = var.replica-count
-      redis-username         = "replication-user"
-      redis-password         = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
-      redis-tls-cacert       = <<-EOF
+      await-service-name         = var.await-service-name
+      dest-service-name          = var.dest-service-name
+      primary-count              = var.primary-count
+      replica-count              = var.replica-count
+      redis-username             = "replication-user"
+      redis-password             = "435e9c4225f08813ef3af7c725f0d30d263b9cd3"
+      redis-tls-cacert           = <<-EOF
         -----BEGIN CERTIFICATE-----
         MIIDSzCCAjOgAwIBAgIIAg26dvKrbYkwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
         AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMCAXDTIxMTAyMzAyMTUxOVoYDzIxMjEx
@@ -92,7 +96,7 @@ resource "nomad_job" "redis-cluster" {
         -----END CERTIFICATE-----
 
       EOF
-      redis-tls-cert         = <<-EOF
+      redis-tls-cert             = <<-EOF
         -----BEGIN CERTIFICATE-----
         MIIDJzCCAg+gAwIBAgIIEguoVcAkRXwwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
         AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMB4XDTIxMTIwNjIxNTIwOFoXDTI0MDEw
@@ -114,7 +118,7 @@ resource "nomad_job" "redis-cluster" {
         -----END CERTIFICATE-----
 
       EOF
-      redis-tls-key          = <<-EOF
+      redis-tls-key              = <<-EOF
         -----BEGIN RSA PRIVATE KEY-----
         MIIEowIBAAKCAQEAsBrTn0RmwyiZlOxB779Vam0M96SJbyf0w+EDVZXqVjuGdJxX
         suSuEqF8fDZIycsRji+1WQ9IG5er4A/0TFUAxE7gFzag27hk0Y7vRnzrZi3PFive
@@ -144,7 +148,7 @@ resource "nomad_job" "redis-cluster" {
         -----END RSA PRIVATE KEY-----
 
       EOF
-      redis-config-template  = <<-EOF
+      redis-config-template      = <<-EOF
         user default off
         masteruser replication-user
         masterauth {{ env "redis-password" }}
@@ -187,7 +191,7 @@ resource "nomad_job" "redis-cluster" {
         rename-command SREM ""
 
       EOF
-      attache-redis-tls-cert = <<-EOF
+      attache-redis-tls-cert     = <<-EOF
         -----BEGIN CERTIFICATE-----
         MIIDJzCCAg+gAwIBAgIIH6kXr5uW/6gwDQYJKoZIhvcNAQELBQAwIDEeMBwGA1UE
         AxMVbWluaWNhIHJvb3QgY2EgMDIwZGJhMB4XDTIxMTIwNjIxNTA0NloXDTI0MDEw
@@ -209,7 +213,7 @@ resource "nomad_job" "redis-cluster" {
         -----END CERTIFICATE-----
 
       EOF
-      attache-redis-tls-key  = <<-EOF
+      attache-redis-tls-key      = <<-EOF
         -----BEGIN RSA PRIVATE KEY-----
         MIIEpAIBAAKCAQEA+KjVq9tqg6Q8RAAM+FtfYEp+ge31wnwBieLv/CGnEaZSQAd9
         zZqSjJPhrgCAT3qanBXFgT23vjV9ycjj8gkUpWuVRaeeF4/RlT3A9G5FElBn2kfX
@@ -237,6 +241,55 @@ resource "nomad_job" "redis-cluster" {
         icajrMNqHmdqSTZE2x/t/G2IyQ7qdWc4oHV7fHdavTRIED1qnPttihc7LX+56q6h
         ptuRGx51m1nbP0LU+0H5vzZy712aCPtS92/n1BqKHOdTR6zYViR33w==
         -----END RSA PRIVATE KEY-----
+
+      EOF
+      consul-tls-ca-cert = <<-EOF
+        -----BEGIN CERTIFICATE-----
+        MIIC7jCCApSgAwIBAgIRAN4DUzSw7n5g8dkMKNlRYikwCgYIKoZIzj0EAwIwgbkx
+        CzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNj
+        bzEaMBgGA1UECRMRMTAxIFNlY29uZCBTdHJlZXQxDjAMBgNVBBETBTk0MTA1MRcw
+        FQYDVQQKEw5IYXNoaUNvcnAgSW5jLjFAMD4GA1UEAxM3Q29uc3VsIEFnZW50IENB
+        IDI5NTEwNTg3OTU2OTQ0NjE2NDk3ODAzNzc2MTQ1MDU5Mjc4OTAzMzAeFw0yMjAx
+        MTkwMDAzMzFaFw0yNzAxMTgwMDAzMzFaMIG5MQswCQYDVQQGEwJVUzELMAkGA1UE
+        CBMCQ0ExFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xGjAYBgNVBAkTETEwMSBTZWNv
+        bmQgU3RyZWV0MQ4wDAYDVQQREwU5NDEwNTEXMBUGA1UEChMOSGFzaGlDb3JwIElu
+        Yy4xQDA+BgNVBAMTN0NvbnN1bCBBZ2VudCBDQSAyOTUxMDU4Nzk1Njk0NDYxNjQ5
+        NzgwMzc3NjE0NTA1OTI3ODkwMzMwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASs
+        V95+qGSD9fDZdbC621bw3qxJ3jdlLuXvc3bmBxYjROt5zBs9e8M1DO2M3G97scuT
+        R3z+len7Tk1zNMq7Bbcno3sweTAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUw
+        AwEB/zApBgNVHQ4EIgQgrFJbvMZUANDyAKRgOTF8qEoEKJz0q6YP9H6z//PlKP8w
+        KwYDVR0jBCQwIoAgrFJbvMZUANDyAKRgOTF8qEoEKJz0q6YP9H6z//PlKP8wCgYI
+        KoZIzj0EAwIDSAAwRQIgQYpMKdsbm7nZ9L+B5EPWM2j/QAALYXqoTJZKbQpT1xkC
+        IQC1fQi4d3fKX/B1+FVl7HFXLNl3HZc4aG0ZHLHDzRxtOw==
+        -----END CERTIFICATE-----
+
+      EOF
+      attache-consul-tls-cert    = <<-EOF
+        -----BEGIN CERTIFICATE-----
+        MIICqzCCAlKgAwIBAgIQTzAKktzREOLGCmfXQ2ZIeDAKBggqhkjOPQQDAjCBuTEL
+        MAkGA1UEBhMCVVMxCzAJBgNVBAgTAkNBMRYwFAYDVQQHEw1TYW4gRnJhbmNpc2Nv
+        MRowGAYDVQQJExExMDEgU2Vjb25kIFN0cmVldDEOMAwGA1UEERMFOTQxMDUxFzAV
+        BgNVBAoTDkhhc2hpQ29ycCBJbmMuMUAwPgYDVQQDEzdDb25zdWwgQWdlbnQgQ0Eg
+        Mjk1MTA1ODc5NTY5NDQ2MTY0OTc4MDM3NzYxNDUwNTkyNzg5MDMzMB4XDTIyMDEx
+        OTAyMTk0N1oXDTIzMDExOTAyMTk0N1owJDEiMCAGA1UEAxMZY2xpZW50LmRldi1n
+        ZW5lcmFsLmNvbnN1bDBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPI96gOhYdej
+        PB3pBPmEGe371/ozv8LIfWPGm0KknIlgepeXgBaUGuj47LJIJt7ACtdroLLMgNwx
+        mJYEkUb4fmmjgc8wgcwwDgYDVR0PAQH/BAQDAgWgMB0GA1UdJQQWMBQGCCsGAQUF
+        BwMCBggrBgEFBQcDATAMBgNVHRMBAf8EAjAAMCkGA1UdDgQiBCAKhLdW6OZ1C3FP
+        jl4hYfED/I+MJSK6K88CGhTEvGnkxzArBgNVHSMEJDAigCCsUlu8xlQA0PIApGA5
+        MXyoSgQonPSrpg/0frP/8+Uo/zA1BgNVHREELjAsghljbGllbnQuZGV2LWdlbmVy
+        YWwuY29uc3Vsgglsb2NhbGhvc3SHBH8AAAEwCgYIKoZIzj0EAwIDRwAwRAIgdE3A
+        V+dDIRQDh+UvHAtKZ/jZN9Ngiog+WArXscpC58ICIBsz7I2tlyPws0UIrvmkkaja
+        wE1fWsYqIBM61rsbo3C+
+        -----END CERTIFICATE-----
+
+      EOF
+      attache-consul-tls-key     = <<-EOF
+        -----BEGIN EC PRIVATE KEY-----
+        MHcCAQEEIEJ1/M9V4eoCJG6NJfT/IWYLJWT/lA/gzMa31yDm8dAtoAoGCCqGSM49
+        AwEHoUQDQgAE8j3qA6Fh16M8HekE+YQZ7fvX+jO/wsh9Y8abQqSciWB6l5eAFpQa
+        6Pjsskgm3sAK12ugssyA3DGYlgSRRvh+aQ==
+        -----END EC PRIVATE KEY-----
 
       EOF
     }

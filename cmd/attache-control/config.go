@@ -58,22 +58,16 @@ func (c cliOpts) Validate() error {
 		return errors.New("missing required opt: 'await-service-name'")
 	}
 
-	if c.ConsulOpts.EnableTLS {
-		if c.ConsulOpts.TLSCACertFile == "" {
-			return errors.New("missing required opt: 'consul-tls-ca-cert")
-		}
-
-		if c.ConsulOpts.TLSCertFile == "" {
-			return errors.New("missing required opt: 'consul-tls-cert")
-		}
-
-		if c.ConsulOpts.TLSKeyFile == "" {
-			return errors.New("missing required opt: 'consul-tls-key")
-		}
+	if c.ConsulOpts.TLSCACertFile == "" {
+		return errors.New("missing required opt: 'consul-tls-ca-cert")
 	}
 
-	if !c.ConsulOpts.EnableTLS && (c.ConsulOpts.TLSCACertFile != "" || c.ConsulOpts.TLSCertFile != "" || c.ConsulOpts.TLSKeyFile != "") {
-		return errors.New("missing required opt: 'consul-tls-enable")
+	if c.ConsulOpts.TLSCertFile == "" {
+		return errors.New("missing required opt: 'consul-tls-cert")
+	}
+
+	if c.ConsulOpts.TLSKeyFile == "" {
+		return errors.New("missing required opt: 'consul-tls-key")
 	}
 
 	if c.RedisOpts.NodeAddr == "" {
@@ -108,7 +102,7 @@ func ParseFlags() cliOpts {
 	// CLI
 	flag.StringVar(&conf.lockPath, "lock-kv-path", "service/attache/leader", "Consul KV path to use as a leader lock for Redis Cluster operations")
 	flag.DurationVar(&conf.attemptInterval, "attempt-interval", 3*time.Second, "Duration to wait between attempts to join or create a cluster (e.g. '1s')")
-	flag.IntVar(&conf.attemptLimit, "attempt-limit", 20, "Number of times to attempt for or join a cluster before exiting")
+	flag.IntVar(&conf.attemptLimit, "attempt-limit", 20, "Number of times to attempt join or create a cluster before exiting")
 	flag.StringVar(&conf.awaitServiceName, "await-service-name", "", "Consul Service for newly created Redis Cluster Nodes, (required)")
 	flag.StringVar(&conf.destServiceName, "dest-service-name", "", "Consul Service for healthy Redis Cluster Nodes, (required)")
 	flag.StringVar(&conf.logLevel, "log-level", "info", "Set the log level")
@@ -123,12 +117,11 @@ func ParseFlags() cliOpts {
 
 	// Consul
 	flag.StringVar(&conf.ConsulOpts.DC, "consul-dc", "dev-general", "Consul client datacenter")
-	flag.StringVar(&conf.ConsulOpts.Address, "consul-addr", "127.0.0.1:8500", "Consul client address")
+	flag.StringVar(&conf.ConsulOpts.Address, "consul-addr", "127.0.0.1:8501", "Consul client address")
 	flag.StringVar(&conf.ConsulOpts.ACLToken, "consul-acl-token", "", "Consul client ACL token")
-	flag.BoolVar(&conf.ConsulOpts.EnableTLS, "consul-tls-enable", false, "Enable mTLS for the Consul client (requires 'consul-tls-ca-cert', 'consul-tls-cert', 'consul-tls-key')")
-	flag.StringVar(&conf.ConsulOpts.TLSCACertFile, "consul-tls-ca-cert", "", "Consul client CA certificate file")
-	flag.StringVar(&conf.ConsulOpts.TLSCertFile, "consul-tls-cert", "", "Consul client certificate file")
-	flag.StringVar(&conf.ConsulOpts.TLSKeyFile, "consul-tls-key", "", "Consul client key file")
+	flag.StringVar(&conf.ConsulOpts.TLSCACertFile, "consul-tls-ca-cert", "", "Consul client CA certificate file, (required)")
+	flag.StringVar(&conf.ConsulOpts.TLSCertFile, "consul-tls-cert", "", "Consul client certificate file, (required)")
+	flag.StringVar(&conf.ConsulOpts.TLSKeyFile, "consul-tls-key", "", "Consul client key file, (required)")
 
 	flag.Parse()
 	return conf

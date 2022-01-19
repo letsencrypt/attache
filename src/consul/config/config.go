@@ -22,10 +22,6 @@ type ConsulOpts struct {
 	// API calls.
 	ACLToken string
 
-	// EnableTLS is not required but if set to true will enable mutual TLS for
-	// API calls.
-	EnableTLS bool
-
 	// TLSCACertFile is the path to a PEM formatted CA Certificate. Required
 	// when `EnableTLS` is true.
 	TLSCACertFile string
@@ -45,21 +41,21 @@ func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 	config.Datacenter = c.DC
 	config.Address = c.Address
 	config.Token = c.ACLToken
-	if c.EnableTLS {
-		config.Scheme = "https"
-		tlsConfig := consul.TLSConfig{
-			Address:  c.Address,
-			CAFile:   c.TLSCACertFile,
-			CertFile: c.TLSCertFile,
-			KeyFile:  c.TLSKeyFile,
-		}
-		tlsClientConf, err := consul.SetupTLSConfig(&tlsConfig)
-		if err != nil {
-			return nil, fmt.Errorf("error creating TLS client config for consul: %w", err)
-		}
-		config.HttpClient.Transport = &http.Transport{
-			TLSClientConfig: tlsClientConf,
-		}
+	config.Scheme = "https"
+
+	consulTLSConf := &consul.TLSConfig{
+		Address:  c.Address,
+		CAFile:   c.TLSCACertFile,
+		CertFile: c.TLSCertFile,
+		KeyFile:  c.TLSKeyFile,
 	}
+
+	tlsConf, err := consul.SetupTLSConfig(consulTLSConf)
+	if err != nil {
+		return nil, fmt.Errorf("error creating TLS client config for consul: %w", err)
+	}
+
+	config.HttpClient = &http.Client{Transport: http.DefaultTransport}
+	config.HttpClient.Transport = &http.Transport{TLSClientConfig: tlsConf}
 	return config, nil
 }
