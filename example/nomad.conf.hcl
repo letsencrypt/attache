@@ -1,6 +1,5 @@
-
-log_level  = "ERROR"
 datacenter = "dev-general"
+log_level  = "ERROR"
 consul {
   address   = "localhost:8501"
   ssl       = true

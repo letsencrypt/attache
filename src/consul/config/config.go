@@ -47,16 +47,20 @@ func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 	config.Token = c.ACLToken
 	if c.EnableTLS {
 		config.Scheme = "https"
-		fmt.Printf("%+v", c)
 		tlsConfig := consul.TLSConfig{
-			Address:  c.Address,
-			CAFile:   c.TLSCACertFile,
-			CertFile: c.TLSCertFile,
-			KeyFile:  c.TLSKeyFile,
+			Address:            c.Address,
+			CAFile:             c.TLSCACertFile,
+			CertFile:           c.TLSCertFile,
+			KeyFile:            c.TLSKeyFile,
+			InsecureSkipVerify: true,
 		}
 		tlsClientConf, err := consul.SetupTLSConfig(&tlsConfig)
 		if err != nil {
 			return nil, fmt.Errorf("error creating TLS client config for consul: %w", err)
+		}
+
+		config.HttpClient = &http.Client{
+			Transport: http.DefaultTransport,
 		}
 		config.HttpClient.Transport = &http.Transport{
 			TLSClientConfig: tlsClientConf,
