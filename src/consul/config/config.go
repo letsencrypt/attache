@@ -47,6 +47,7 @@ func (c *ConsulOpts) MakeConsulConfig() (*consul.Config, error) {
 	config.Token = c.ACLToken
 	if c.EnableTLS {
 		config.Scheme = "https"
+		fmt.Printf("%+v", c)
 		tlsConfig := consul.TLSConfig{
 			Address:  c.Address,
 			CAFile:   c.TLSCACertFile,
