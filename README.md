@@ -56,9 +56,9 @@ Redis nodes (in the Await Consul Service) to do so.
 $ ./attache-control -help
 Usage of ./attache-control:
   -attempt-interval duration
-    	Duration to wait between attempts to join or create a cluster (default 3s)
+    	Duration to wait between attempts to join or create a cluster (e.g. '1s') (default 3s)
   -attempt-limit int
-    	Number of times to attempt joining or creating a cluster before exiting (default 20)
+    	Number of times to join or create a cluster before exiting (default 20)
   -await-service-name string
     	Consul Service for newly created Redis Cluster Nodes, (required)
   -consul-acl-token string
@@ -67,18 +67,16 @@ Usage of ./attache-control:
     	Consul client address (default "127.0.0.1:8501")
   -consul-dc string
     	Consul client datacenter (default "dev-general")
-  -consul-tls-ca-cert string
+  -consul-tls-ca-cert string, (required)
     	Consul client CA certificate file
-  -consul-tls-cert string
+  -consul-tls-cert string, (required)
     	Consul client certificate file
-  -consul-tls-enable
-    	Enable mTLS for the Consul client
-  -consul-tls-key string
+  -consul-tls-key string, (required)
     	Consul client key file
   -dest-service-name string
     	Consul Service for healthy Redis Cluster Nodes, (required)
   -lock-kv-path string
-    	Consul KV path used as a distributed lock for operations (default "service/attache/leader")
+    	Consul KV path to use as a leader lock for Redis Cluster operations (default "service/attache/leader")
   -log-level string
     	Set the log level (default "info")
   -redis-auth-password-file string
@@ -106,12 +104,12 @@ $ go build -o attache-check ./cmd/attache-check/main.go && go build -o attache-c
 
 In another shell, start the Consul server in `dev` mode:
 ```shell
-$ consul agent -dev -datacenter dev-general -log-level ERROR
+$ consul agent -dev -config-format=hcl -config-file consul.conf.hcl
 ```
 
 In another shell, start the Nomad server in `dev` mode:
 ```shell
-$ sudo nomad agent -dev -bind 0.0.0.0 -log-level ERROR -dc dev-general
+$ sudo nomad agent -dev -config nomad.conf.hcl
 ```
 
 Start a Nomad job deployment using Terraform:

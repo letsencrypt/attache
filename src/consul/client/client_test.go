@@ -10,7 +10,6 @@ func TestNew(t *testing.T) {
 	config := config.ConsulOpts{
 		DC:            "dev-general",
 		Address:       "127.0.0.1:8501",
-		EnableTLS:     true,
 		TLSCACertFile: "../../../example/tls/consul/consul-agent-ca.pem",
 		TLSCertFile:   "../../../example/tls/attache/consul/dev-general-client-consul-0.pem",
 		TLSKeyFile:    "../../../example/tls/attache/consul/dev-general-client-consul-0-key.pem",
@@ -21,6 +20,6 @@ func TestNew(t *testing.T) {
 	}
 
 	if client == nil {
-		t.Fatal("nil client")
+		t.Fatal("no error but client was nil")
 	}
 }

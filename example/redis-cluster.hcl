@@ -39,18 +39,18 @@ variable "redis-password" {
 }
 
 // redis-tls-cacert is the contents of the CA cert file, in PEM format, used for
-// mutal TLS authentication between Redis Server and Attaché.
+// mutual TLS authentication between Redis Server and Attaché.
 variable "redis-tls-cacert" {
   type = string
 }
 
 // redis-tls-cert is the contents of the cert file, in PEM format, used for
-// mutal TLS authentication between Redis Server and Attaché.
+// mutual TLS authentication between Redis Server and Attaché.
 variable "redis-tls-cert" {
   type = string
 }
 
-// redis-tls-key is the contents of the key file, in PEM format, used for mutal
+// redis-tls-key is the contents of the key file, in PEM format, used for mutual
 // TLS authentication between Redis Server and Attaché.
 variable "redis-tls-key" {
   type = string
@@ -63,31 +63,31 @@ variable "redis-config-template" {
 }
 
 // attache-redis-tls-cert is the contents of the cert file, in PEM format, used
-// for mutal TLS authentication between Attaché and the Redis Server.
+// for mutual TLS authentication between Attaché and the Redis Server.
 variable "attache-redis-tls-cert" {
   type = string
 }
 
 // attache-redis-tls-key is the contents of the key file, in PEM format, used
-// for mutal TLS authentication between Attaché and the Redis Server.
+// for mutual TLS authentication between Attaché and the Redis Server.
 variable "attache-redis-tls-key" {
   type = string
 }
 
 // consul-tls-ca-cert is the contents of the CA cert file, in PEM format, used
-// for mutal TLS authentication between Attaché and the Consul Server.
+// for mutual TLS authentication between Attaché and the Consul Server.
 variable "consul-tls-ca-cert" {
   type = string
 }
 
 // attache-consul-tls-cert is the contents of the cert file, in PEM format, used
-// for mutal TLS authentication between Attaché and the Consul Server.
+// for mutual TLS authentication between Attaché and the Consul Server.
 variable "attache-consul-tls-cert" {
   type = string
 }
 
 // attache-consul-tls-key is the contents of the key file, in PEM format, used
-// for mutal TLS authentication between Attaché and the Cosnul Server.
+// for mutual TLS authentication between Attaché and the Cosnul Server.
 variable "attache-consul-tls-key" {
   type = string
 }
@@ -228,7 +228,6 @@ job "redis-cluster" {
           "-redis-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/redis-tls/ca-cert.pem",
           "-redis-tls-cert-file", "${NOMAD_ALLOC_DIR}/data/attache-redis-tls/cert.pem",
           "-redis-tls-key-file", "${NOMAD_ALLOC_DIR}/data/attache-redis-tls/key.pem",
-          "-consul-tls-enable",
           "-consul-tls-ca-cert", "${NOMAD_ALLOC_DIR}/data/consul-tls/ca-cert.pem",
           "-consul-tls-cert", "${NOMAD_ALLOC_DIR}/data/attache-consul-tls/cert.pem",
           "-consul-tls-key", "${NOMAD_ALLOC_DIR}/data/attache-consul-tls/key.pem"
