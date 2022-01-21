@@ -57,10 +57,20 @@ type ScalingOpts struct {
 	ReplicaCount int `yaml:"replica-count"`
 }
 
-// TotalCount returns the total count of expected replica and primary Redis
-// Cluster nodes.
-func (s *ScalingOpts) TotalCount() int {
+// totalCount returns the total count of expected replica and primary nodes.
+func (s *ScalingOpts) totalCount() int {
 	return s.PrimaryCount + s.ReplicaCount
+}
+
+// NodesMissing returns the total count of expected replica and primary nodes
+// minus nodesInAwait.
+func (s *ScalingOpts) NodesMissing(nodesInAwait int) int {
+	return s.totalCount() - nodesInAwait
+}
+
+// ReplicasPerPrimary returns the number of replica nodes per primary shard.
+func (s *ScalingOpts) ReplicasPerPrimary() int {
+	return s.ReplicaCount / s.PrimaryCount
 }
 
 // GetScalingOpts fetches the count of Redis primary and replica nodes from KV
