@@ -23,7 +23,7 @@ github.com/go-redis/redis/v8/internal/util
 # github.com/gorilla/mux v1.8.0
 ## explicit; go 1.12
 github.com/gorilla/mux
-# github.com/hashicorp/consul/api v1.11.0
+# github.com/hashicorp/consul/api v1.12.0
 ## explicit; go 1.12
 github.com/hashicorp/consul/api
 # github.com/hashicorp/go-cleanhttp v0.5.1
@@ -41,7 +41,7 @@ github.com/hashicorp/go-rootcerts
 # github.com/hashicorp/golang-lru v0.5.0
 ## explicit
 github.com/hashicorp/golang-lru/simplelru
-# github.com/hashicorp/serf v0.9.5
+# github.com/hashicorp/serf v0.9.6
 ## explicit; go 1.12
 github.com/hashicorp/serf/coordinate
 # github.com/mattn/go-colorable v0.1.6
