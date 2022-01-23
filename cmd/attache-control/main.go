@@ -16,7 +16,7 @@ import (
 	logger "github.com/sirupsen/logrus"
 )
 
-var ErrContinue = errors.New("Continue")
+var errContinue = errors.New("continuing")
 
 func setLogLevel(level string) {
 	parsedLevel, err := logger.ParseLevel(level)
@@ -68,7 +68,7 @@ func (l *leader) createNewRedisCluster() error {
 	// that we expect in said cluster have finished starting up and reside in
 	// the awaitService Consul service.
 	if l.scalingOpts.NodesMissing(numNodesInAwait) >= 1 {
-		return fmt.Errorf("still waiting for nodes to startup, releasing lock: %w", ErrContinue)
+		return fmt.Errorf("still waiting for nodes to startup, releasing lock: %w", errContinue)
 
 	} else {
 		var nodesToCluster []string
@@ -173,16 +173,7 @@ func (l *leader) joinOrCreateRedisCluster() error {
 	return nil
 }
 
-func attemptLock(c cliOpts, newNode *redisClient.Client, scaling *consulClient.ScalingOpts, dest *consulClient.Client) error {
-	nodeIsNew, err := newNode.StateNewCheck()
-	if err != nil {
-		return err
-	}
-	if !nodeIsNew {
-		logger.Info("this node has already joined a cluster")
-		return nil
-	}
-
+func attemptLock(c cliOpts, scaling *consulClient.ScalingOpts, dest *consulClient.Client) error {
 	lock, err := lockClient.New(c.ConsulOpts, c.lockPath, "10s")
 	if err != nil {
 		return err
@@ -194,7 +185,7 @@ func attemptLock(c cliOpts, newNode *redisClient.Client, scaling *consulClient.S
 	}
 
 	if !lockAcquired {
-		return fmt.Errorf("another node currently has the lock: %w", ErrContinue)
+		return fmt.Errorf("another node currently has the lock: %w", errContinue)
 	}
 
 	logger.Info("acquired leader lock")
@@ -208,7 +199,6 @@ func attemptLock(c cliOpts, newNode *redisClient.Client, scaling *consulClient.S
 }
 
 func main() {
-	start := time.Now()
 	c := ParseFlags()
 	err := c.Validate()
 	if err != nil {
@@ -219,7 +209,7 @@ func main() {
 	logger.Infof("starting %s", os.Args[0])
 
 	logger.Info("initializing a new redis client")
-	newNode, err := redisClient.New(c.RedisOpts)
+	thisNode, err := redisClient.New(c.RedisOpts)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -240,7 +230,6 @@ func main() {
 	catchSignals := make(chan os.Signal, 1)
 	signal.Notify(catchSignals, os.Interrupt)
 
-	var attemptCount int64
 	ticker := time.NewTicker(c.attemptInterval)
 	done := make(chan bool, 1)
 
@@ -252,41 +241,29 @@ func main() {
 			case <-catchSignals:
 				ticker.Stop()
 				done <- true
-				return
 			case <-ticker.C:
-				attemptCount++
-				err := attemptLock(c, newNode, scaling, dest)
+				isNew, err := thisNode.IsNew()
 				if err != nil {
-					if errors.Is(err, ErrContinue) {
-						if attemptCount >= c.attemptLimit {
-							logger.Errorf("failed to join or create a cluster after %q attempts", attemptCount)
-							ticker.Stop()
-							done <- true
-							return
-						}
-						logger.Infof("continuing to wait, %d attempts remain", (c.attemptLimit - attemptCount))
+					logger.Errorf("while attempting to check that status of %q: %s", c.RedisOpts.NodeAddr, err)
+					continue
+				}
+				if !isNew {
+					logger.Info("this node is already part of an existing cluster")
+					continue
+				}
+				err = attemptLock(c, scaling, dest)
+				if err != nil {
+					if errors.Is(err, errContinue) {
+						logger.Info(err)
 						continue
 					}
 					logger.Errorf("while attempting to join or create a cluster: %s", err)
 					continue
 				}
-				ticker.Stop()
-				done <- true
-				return
+				logger.Info("no work to perform")
 			}
 		}
 	}()
 	<-done
-
-	// TODO: Remove once https://github.com/hashicorp/nomad/issues/10058 has
-	// been solved. Nomad Post-Start tasks need to stay healthy for at least 10s
-	// after the Main Tasks are marked healthy.
-	duration := time.Since(start)
-	minHealthyTime := time.Second * 30
-	if duration < minHealthyTime {
-		timeToWait := minHealthyTime - duration
-		logger.Infof("waiting %s to exit", timeToWait.String())
-		time.Sleep(timeToWait)
-	}
 	logger.Info("exiting...")
 }
