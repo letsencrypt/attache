@@ -22,7 +22,7 @@ type cliOpts struct {
 
 	// attemptLimit is the number of times to attempt joining or creating a cluster before Attache
 	// should exit as failed.
-	attemptLimit int
+	attemptLimit int64
 
 	// awaitServiceName is the name of the Consul Service that newly created
 	// Redis Cluster nodes will join when they're first started but have yet to
@@ -102,7 +102,7 @@ func ParseFlags() cliOpts {
 	// CLI
 	flag.StringVar(&conf.lockPath, "lock-kv-path", "service/attache/leader", "Consul KV path to use as a leader lock for Redis Cluster operations")
 	flag.DurationVar(&conf.attemptInterval, "attempt-interval", 3*time.Second, "Duration to wait between attempts to join or create a cluster (e.g. '1s')")
-	flag.IntVar(&conf.attemptLimit, "attempt-limit", 6, "Number of times to attempt join or create a cluster before exiting")
+	flag.Int64Var(&conf.attemptLimit, "attempt-limit", 6, "Number of times to attempt join or create a cluster before exiting")
 	flag.StringVar(&conf.awaitServiceName, "await-service-name", "", "Consul Service for newly created Redis Cluster Nodes, (required)")
 	flag.StringVar(&conf.destServiceName, "dest-service-name", "", "Consul Service for healthy Redis Cluster Nodes, (required)")
 	flag.StringVar(&conf.logLevel, "log-level", "info", "Set the log level")
