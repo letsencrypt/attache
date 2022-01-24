@@ -117,12 +117,12 @@ func (l *leader) joinOrCreateRedisCluster() error {
 		logger.Info("new cluster created successfully")
 		return nil
 	}
-	existingNode := l.nodesInDest[0]
+	existingClusterNode := l.nodesInDest[0]
 	logger.Infof("found %d cluster nodes in consul service %q", numNodesInDest, l.destServiceName)
 
-	logger.Infof("gathering info from the cluster that %q belongs to", existingNode)
+	logger.Infof("gathering info from the cluster that %q belongs to", existingClusterNode)
 	clusterClient, err := redisClient.New(config.RedisOpts{
-		NodeAddr:       existingNode,
+		NodeAddr:       existingClusterNode,
 		Username:       l.RedisOpts.Username,
 		PasswordConfig: l.RedisOpts.PasswordConfig,
 		TLSConfig:      l.RedisOpts.TLSConfig,
@@ -146,8 +146,8 @@ func (l *leader) joinOrCreateRedisCluster() error {
 		// This node should be added as a new primary and the existing cluster
 		// shardslots should be rebalanced.
 		logger.Infof("%q should be added as a shard primary", l.RedisOpts.NodeAddr)
-		logger.Infof("attempting to add %q to the cluster that %q belongs to", l.RedisOpts.NodeAddr, existingNode)
-		err := redisCLI.AddNewShardPrimary(l.RedisOpts, existingNode)
+		logger.Infof("attempting to add %q to the cluster that %q belongs to", l.RedisOpts.NodeAddr, existingClusterNode)
+		err := redisCLI.AddNewShardPrimary(l.RedisOpts, existingClusterNode)
 		if err != nil {
 			return err
 		}
@@ -159,25 +159,25 @@ func (l *leader) joinOrCreateRedisCluster() error {
 		// node should be added as a replica to the primary node with the least
 		// number of replicas.
 		logger.Infof("%q should be added as a new shard replica", l.RedisOpts.NodeAddr)
-		logger.Infof("attempting to add %q to the cluster that %q belongs to", l.RedisOpts.NodeAddr, existingNode)
-		err := redisCLI.AddNewShardReplica(l.RedisOpts, existingNode)
+		logger.Infof("attempting to add %q to the cluster that %q belongs to", l.RedisOpts.NodeAddr, existingClusterNode)
+		err := redisCLI.AddNewShardReplica(l.RedisOpts, existingClusterNode)
 		if err != nil {
 			return err
 		}
 		logger.Infof("%q was successfully added as a shard replica", l.RedisOpts.NodeAddr)
 		return nil
 	}
-	// This should not happen, attache doesn't currently support adding nodes
-	// with 0 hash slots.
-	logger.Info("nothing to do")
-	return nil
+
+	// This should never happen as long as the job and scaling opts match.
+	return errors.New("node couldn't be added to the existing cluster")
 }
 
-func attemptLock(c cliOpts, scaling *consulClient.ScalingOpts, dest *consulClient.Client) error {
+func attemptLeaderLock(c cliOpts, scaling *consulClient.ScalingOpts, dest *consulClient.Client) error {
 	lock, err := lockClient.New(c.ConsulOpts, c.lockPath, "10s")
 	if err != nil {
 		return err
 	}
+	defer lock.Cleanup()
 
 	lockAcquired, err := lock.Acquire()
 	if err != nil {
@@ -226,7 +226,6 @@ func main() {
 		logger.Fatal(err)
 	}
 
-	// If forced to exit early, cleanup our session.
 	catchSignals := make(chan os.Signal, 1)
 	signal.Notify(catchSignals, os.Interrupt)
 
@@ -237,21 +236,30 @@ func main() {
 		for {
 			select {
 			case <-done:
+				// Finally return.
 				return
+
 			case <-catchSignals:
+				// Gracefully shutdown.
 				ticker.Stop()
 				done <- true
+
 			case <-ticker.C:
-				isNew, err := thisNode.IsNew()
+				// Attempt to join or modify a cluster.
+				thisNodeIsNew, err := thisNode.IsNew()
 				if err != nil {
 					logger.Errorf("while attempting to check that status of %q: %s", c.RedisOpts.NodeAddr, err)
 					continue
 				}
-				if !isNew {
+				if !thisNodeIsNew {
 					logger.Info("this node is already part of an existing cluster")
+
+					// Stop the ticker and run until killed due to:
+					// https://github.com/hashicorp/nomad/issues/10058
+					ticker.Stop()
 					continue
 				}
-				err = attemptLock(c, scaling, dest)
+				err = attemptLeaderLock(c, scaling, dest)
 				if err != nil {
 					if errors.Is(err, errContinue) {
 						logger.Info(err)
@@ -260,8 +268,8 @@ func main() {
 					logger.Errorf("while attempting to join or create a cluster: %s", err)
 					continue
 				}
-				logger.Info("no work to perform")
 			}
+
 		}
 	}()
 	<-done
