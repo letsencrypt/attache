@@ -15,6 +15,8 @@ type Lock struct {
 	key            string
 	sessionID      string
 	sessionTimeout string
+	renewChan      chan struct{}
+	acquired       bool
 }
 
 // New creates a new Consul client, aquires an ephemeral session with that
@@ -69,31 +71,49 @@ func (l *Lock) Acquire() (bool, error) {
 	}
 
 	acquired, _, err := l.client.KV().Acquire(kvPair, nil)
+	if acquired {
+		go l.periodicallyRenew()
+	}
 	return acquired, err
 }
 
-// Renew is used to periodically invoke Session.Renew() on a session until a
-// `doneChan` is closed, it should only be called from a long running goroutine.
-func (l *Lock) Renew(doneChan <-chan struct{}) {
-	err := l.client.Session().RenewPeriodic(l.sessionTimeout, l.sessionID, nil, doneChan)
+// periodicallyRenew will invoke periodicallyRenew() before l.sessionTimeout on
+// a session until a l.renewChan is closed, it should only be called from a long
+// running goroutine.
+func (l *Lock) periodicallyRenew() {
+	l.renewChan = make(chan struct{})
+	err := l.client.Session().RenewPeriodic(l.sessionTimeout, l.sessionID, nil, l.renewChan)
 	if err != nil {
 		logger.Error(err)
 	}
 }
 
-// Cleanup releases our leader lock by deleting the KV pair and destroying the
-// session that was used to create it in the first place. These calls only need
-// to be best-effort. In the event that either of them fail the lock will
-// release once the session expires and any KV pair created during that session
-// will be deleted as well.
+// Cleanup stops periodic session renewals used the hold the lock, releases the
+// lock by deleting the key, and destroys the session. Deleting the key and
+// destroying the session only need to be best effort. In the event that either
+// of these calls fail the lock will be released and the session will be
+// destroyed l.sessionTimeout after l.renewChan is closed.
 func (l *Lock) Cleanup() {
-	_, err := l.client.KV().Delete(l.key, nil)
-	if err != nil {
-		logger.Errorf("cannot delete lock key %q: %s", l.key, err)
-	}
+	if l.acquired {
+		if l.renewChan != nil {
+			// Halt periodic session renewals.
+			close(l.renewChan)
+		}
 
-	_, err = l.client.Session().Destroy(l.sessionID, nil)
-	if err != nil {
-		logger.Errorf("cannot cleanup session %q: %s", l.sessionID, err)
+		// Delete the key holding the lock.
+		_, err := l.client.KV().Delete(l.key, nil)
+		if err != nil {
+			logger.Errorf("cannot delete lock key %q: %s", l.key, err)
+		}
+		l.acquired = false
+
+	}
+	if l.sessionID != "" {
+		// Destroy the session.
+		_, err := l.client.Session().Destroy(l.sessionID, nil)
+		if err != nil {
+			logger.Errorf("cannot cleanup session %q: %s", l.sessionID, err)
+		}
+		l.sessionID = ""
 	}
 }
