@@ -88,7 +88,7 @@ func (l *Lock) periodicallyRenew() {
 	}
 }
 
-// Cleanup stops periodic session renewals used the hold the lock, releases the
+// Cleanup stops periodic session renewals used to hold the lock, releases the
 // lock by deleting the key, and destroys the session. Deleting the key and
 // destroying the session only need to be best effort. In the event that either
 // of these calls fail the lock will be released and the session will be

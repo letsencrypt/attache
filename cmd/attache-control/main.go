@@ -230,7 +230,7 @@ func main() {
 				done <- true
 
 			case <-ticker.C:
-				// Attempt to join or modify a cluster.
+				// Attempt to create or modify a cluster.
 				thisNodeIsNew, err := thisNode.IsNew()
 				if err != nil {
 					logger.Errorf("while attempting to check that status of %s: %s", c.RedisOpts.NodeAddr, err)
