@@ -11,12 +11,12 @@ import (
 // sessions. This is used by attache-control to ensure that only one Redis
 // Cluster node operation (create, add, remove) happens at once.
 type Lock struct {
+	Acquired       bool
 	client         *consul.Client
 	key            string
 	sessionID      string
 	sessionTimeout string
 	renewChan      chan struct{}
-	acquired       bool
 }
 
 // New creates a new Consul client, aquires an ephemeral session with that
@@ -61,20 +61,22 @@ func (l *Lock) createSession() error {
 	return nil
 }
 
-// Acquire attempts to obtain a lock for the Consul KV path of `l.key`. Returns
-// true on success or false on failure.
-func (l *Lock) Acquire() (bool, error) {
+// Acquire attempts to obtain a lock for the Consul KV path of `l.key`. Sets `l.Acquired`
+// true on success and false on failure.
+func (l *Lock) Acquire() error {
 	kvPair := &consul.KVPair{
 		Key:     l.key,
 		Value:   []byte(l.sessionID),
 		Session: l.sessionID,
 	}
 
-	acquired, _, err := l.client.KV().Acquire(kvPair, nil)
-	if acquired {
+	var err error
+	l.Acquired, _, err = l.client.KV().Acquire(kvPair, nil)
+	if l.Acquired {
+		// Spin off a long-running go-routine to continuously renew our session.
 		go l.periodicallyRenew()
 	}
-	return acquired, err
+	return err
 }
 
 // periodicallyRenew will invoke periodicallyRenew() before l.sessionTimeout on
@@ -94,18 +96,16 @@ func (l *Lock) periodicallyRenew() {
 // of these calls fail the lock will be released and the session will be
 // destroyed l.sessionTimeout after l.renewChan is closed.
 func (l *Lock) Cleanup() {
-	if l.acquired {
-		if l.renewChan != nil {
-			// Halt periodic session renewals.
-			close(l.renewChan)
-		}
+	if l.Acquired {
+		// Halt periodic session renewals.
+		close(l.renewChan)
 
 		// Delete the key holding the lock.
 		_, err := l.client.KV().Delete(l.key, nil)
 		if err != nil {
-			logger.Errorf("cannot delete lock key %q: %s", l.key, err)
+			logger.Errorf("cannot lock key %q: %s", l.key, err)
 		}
-		l.acquired = false
+		l.Acquired = false
 
 	}
 	if l.sessionID != "" {

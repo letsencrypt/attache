@@ -105,6 +105,7 @@ func AddNewShardPrimary(conf config.RedisOpts, destNodeAddr string) error {
 	logger.Info("attempting cluster shard slot rebalance")
 	var attempts int
 	ticker := time.NewTicker(6 * time.Second)
+	defer ticker.Stop()
 	for range ticker.C {
 		attempts++
 		err = execute(conf, []string{"--cluster", "rebalance", conf.NodeAddr, "--cluster-use-empty-masters"})

@@ -162,14 +162,14 @@ func attemptLeaderLock(c cliOpts, scaling *consul.ScalingOpts, dest *consul.Clie
 	if err != nil {
 		return err
 	}
-	defer lock.Cleanup()
 
-	lockAcquired, err := lock.Acquire()
+	err = lock.Acquire()
 	if err != nil {
 		return err
 	}
+	defer lock.Cleanup()
 
-	if !lockAcquired {
+	if !lock.Acquired {
 		return fmt.Errorf("another node currently has the lock: %w", errContinue)
 	}
 
@@ -254,9 +254,7 @@ func main() {
 					logger.Errorf("while attempting to join or create a cluster: %s", err)
 					continue
 				}
-				continue
 			}
-
 		}
 	}()
 	<-done
