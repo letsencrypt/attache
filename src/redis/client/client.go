@@ -134,13 +134,10 @@ func unmarshalClusterInfo(info string) (*clusterInfo, error) {
 	var c clusterInfo
 	for _, line := range strings.Split(info, "\r\n") {
 		// https://redis.io/commands/info#return-value
-		if strings.Contains(line, "#") || line == "" {
+		if strings.HasPrefix(line, "#") || line == "" {
 			continue
 		}
-		kv := strings.Split(line, ":")
-		if len(kv) != 2 {
-			return nil, fmt.Errorf("couldn't parse 'cluster info', expected '<key>:<value>', got %q", line)
-		}
+		kv := strings.SplitN(line, ":", 2)
 		err := setClusterInfoField(kv[0], kv[1], &c)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse 'cluster info': %w", err)
