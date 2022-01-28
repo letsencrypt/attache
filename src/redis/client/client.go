@@ -4,13 +4,15 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
+	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/letsencrypt/attache/src/redis/config"
-	"gopkg.in/yaml.v3"
 )
 
 // Client is a wrapper around an inner go-redis client.
@@ -22,7 +24,7 @@ type Client struct {
 }
 
 func (h *Client) StateNewCheck() (bool, error) {
-	var infoMatchingNewNodes = redisClusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
+	var infoMatchingNewNodes = clusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
 	clusterInfo, err := h.GetClusterInfo()
 	if err != nil {
 		return false, err
@@ -79,35 +81,77 @@ func (h *Client) GetReplicaNodes() ([]redisClusterNode, error) {
 	return nodes, nil
 }
 
-type redisClusterInfo struct {
-	State                 string `yaml:"cluster_state"`
-	SlotsAssigned         int    `yaml:"cluster_slots_assigned"`
-	SlotsOk               int    `yaml:"cluster_slots_ok"`
-	SlotsPfail            int    `yaml:"cluster_slots_pfail"`
-	SlotsFail             int    `yaml:"cluster_slots_fail"`
-	KnownNodes            int    `yaml:"cluster_known_nodes"`
-	Size                  int    `yaml:"cluster_size"`
-	CurrentEpoch          int    `yaml:"cluster_current_epoch"`
-	MyEpoch               int    `yaml:"cluster_my_epoch"`
-	StatsMessagesSent     int    `yaml:"cluster_stats_messages_sent"`
-	StatsMessagesReceived int    `yaml:"cluster_stats_messages_received"`
+type clusterInfo struct {
+	State                 string `name:"cluster_state"`
+	SlotsAssigned         int64  `name:"cluster_slots_assigned"`
+	SlotsOk               int64  `name:"cluster_slots_ok"`
+	SlotsPfail            int64  `name:"cluster_slots_pfail"`
+	SlotsFail             int64  `name:"cluster_slots_fail"`
+	KnownNodes            int64  `name:"cluster_known_nodes"`
+	Size                  int64  `name:"cluster_size"`
+	CurrentEpoch          int64  `name:"cluster_current_epoch"`
+	MyEpoch               int64  `name:"cluster_my_epoch"`
+	StatsMessagesSent     int64  `name:"cluster_stats_messages_sent"`
+	StatsMessagesReceived int64  `name:"cluster_stats_messages_received"`
 }
 
-func parseClusterInfoResult(result string) (*redisClusterInfo, error) {
-	var clusterInfo redisClusterInfo
-	err := yaml.Unmarshal([]byte(strings.ReplaceAll(result, ":", ": ")), &clusterInfo)
-	if err != nil {
-		return nil, err
+func setClusterInfoField(name string, value string, ci *clusterInfo) error {
+	outType := reflect.TypeOf(*ci)
+	outValue := reflect.ValueOf(ci).Elem()
+	for i := 0; i < outType.NumField(); i++ {
+		field := outType.Field(i)
+		fieldValue := outValue.Field(i)
+
+		if !fieldValue.IsValid() || !fieldValue.CanSet() {
+			continue
+		}
+		fieldName := field.Tag.Get("name")
+		if fieldName != name {
+			continue
+		}
+
+		switch field.Type.Kind() {
+		case reflect.Int64:
+			vInt, err := strconv.Atoi(value)
+			if err != nil {
+				return fmt.Errorf("couldn't parse %q, value of %q, as int: %w", value, name, err)
+			}
+			fieldValue.SetInt(int64(vInt))
+			return nil
+
+		case reflect.String:
+			fieldValue.SetString(value)
+			return nil
+		}
 	}
-	return &clusterInfo, nil
+	return nil
 }
 
-func (h *Client) GetClusterInfo() (*redisClusterInfo, error) {
+// unmarshalClusterInfo constructs a *clusterInfo by parsing the (INFO style) output
+// of the 'cluster info' command as specified in:
+// https://redis.io/commands/cluster-info.
+func unmarshalClusterInfo(info string) (*clusterInfo, error) {
+	var c clusterInfo
+	for _, line := range strings.Split(info, "\r\n") {
+		// https://redis.io/commands/info#return-value
+		if strings.HasPrefix(line, "#") || line == "" {
+			continue
+		}
+		kv := strings.SplitN(line, ":", 2)
+		err := setClusterInfoField(kv[0], kv[1], &c)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse 'cluster info': %w", err)
+		}
+	}
+	return &c, nil
+}
+
+func (h *Client) GetClusterInfo() (*clusterInfo, error) {
 	info, err := h.Client.ClusterInfo(context.Background()).Result()
 	if err != nil {
 		return nil, err
 	}
-	return parseClusterInfoResult(info)
+	return unmarshalClusterInfo(info)
 }
 
 type redisClusterNode struct {
