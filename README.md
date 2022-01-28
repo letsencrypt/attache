@@ -132,12 +132,29 @@ This is useful for stopping and garbage collecting a job in Nomad immediately.
 nomad job stop -purge "<jobname>"
 ```
 
-#### Count Primary Nodes
+#### Count Primary Redis Nodes
 ```shell
 redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep master | wc -l
 ```
 
-#### Count Replica Nodes
+#### Count Replica Redis Nodes
 ```shell
 redis-cli -p <tls-port> --tls --cert ./example/tls/redis/cert.pem --key ./example/tls/redis/key.pem --cacert ./example/tls/ca-cert.pem --user replication-user --pass <redis-password> cluster nodes | grep slave | wc -l
+```
+
+#### Create New Consul CA-Cert and Key
+```shell
+consul tls ca create
+```
+
+#### Create and Sign New Consul Server Cert and Key
+In the same directory as the CA Cert:
+```shell
+consul tls cert create -client -dc "dev-general"
+```
+
+#### Create and Sign New Consul Client Cert and Key
+In the same directory as the CA Cert:
+```shell
+consul tls cert create -server -dc "dev-general"
 ```

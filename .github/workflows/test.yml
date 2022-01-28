@@ -30,6 +30,10 @@ jobs:
         run: |
           go test -mod=readonly -v -race -covermode=atomic -coverprofile=coverage.out ./...
 
+      - name: go mod
+        run: |
+          go mod vendor && git diff --exit-code
+
       - name: Test goreleaser
         uses: goreleaser/goreleaser-action@v2
         with:

@@ -168,35 +168,18 @@ func Test_parseClusterNodesResult(t *testing.T) {
 	}
 }
 
-func Test_parseClusterInfoResult(t *testing.T) {
+func Test_unmarshalClusterInfo(t *testing.T) {
 	type args struct {
 		result string
 	}
 	tests := []struct {
 		args    args
-		want    *redisClusterInfo
+		want    *clusterInfo
 		wantErr bool
 	}{
 		{
-			args{`
-cluster_state:ok
-cluster_slots_assigned:16384
-cluster_slots_ok:16384
-cluster_slots_pfail:0
-cluster_slots_fail:0
-cluster_known_nodes:13
-cluster_size:3
-cluster_current_epoch:10
-cluster_my_epoch:7
-cluster_stats_messages_ping_sent:88
-cluster_stats_messages_pong_sent:63
-cluster_stats_messages_meet_sent:1
-cluster_stats_messages_sent:152
-cluster_stats_messages_ping_received:63
-cluster_stats_messages_pong_received:82
-cluster_stats_messages_received:145`,
-			},
-			&redisClusterInfo{
+			args{"cluster_state:ok\r\ncluster_slots_assigned:16384\r\ncluster_slots_ok:16384\r\ncluster_slots_pfail:0\r\ncluster_slots_fail:0\r\ncluster_known_nodes:13\r\ncluster_size:3\r\ncluster_current_epoch:10\r\ncluster_my_epoch:7\r\ncluster_stats_messages_ping_sent:88\r\ncluster_stats_messages_pong_sent:63\r\ncluster_stats_messages_meet_sent:1\r\ncluster_stats_messages_sent:152\r\ncluster_stats_messages_ping_received:63\r\ncluster_stats_messages_pong_received:82\r\ncluster_stats_messages_received:145\r\n"},
+			&clusterInfo{
 				State:                 "ok",
 				SlotsAssigned:         16384,
 				SlotsOk:               16384,
@@ -214,13 +197,13 @@ cluster_stats_messages_received:145`,
 	}
 	for _, tt := range tests {
 		t.Run("", func(t *testing.T) {
-			got, err := parseClusterInfoResult(tt.args.result)
+			got, err := unmarshalClusterInfo(tt.args.result)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseClusterInfoResult() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("unmarshalClusterInfo() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseClusterInfoResult() = %+v, want %v", got, tt.want)
+				t.Errorf("unmarshalClusterInfo() = %+v, want %v", got, tt.want)
 			}
 		})
 	}
