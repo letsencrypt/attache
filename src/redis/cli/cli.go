@@ -8,6 +8,7 @@ import (
 
 	"github.com/letsencrypt/attache/src/redis/client"
 	"github.com/letsencrypt/attache/src/redis/config"
+	logger "github.com/sirupsen/logrus"
 )
 
 func makeAuthArgs(conf config.RedisOpts) ([]string, error) {
@@ -95,21 +96,26 @@ func AddNewShardPrimary(conf config.RedisOpts, destNodeAddr string) error {
 	if err != nil {
 		return err
 	}
+	logger.Info("cluster MEET succeeded")
 
-	// Occasionally a cluster won't be ready for a shard slot rebalance
-	// immediately after meeting a new primary node because gossip about this
-	// new master hasn't propogated yet. This should be reattempted a few times.
+	// Retry shard slot belance for a full minute before failing. Occasionally a
+	// cluster won't be ready for a shard slot rebalance immediately after
+	// meeting a new primary node because gossip about this new master hasn't
+	// propogated yet.
+	logger.Info("attempting cluster shard slot rebalance")
 	var attempts int
-	var ticks = time.Tick(5 * time.Second)
-	for range ticks {
+	ticker := time.NewTicker(6 * time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
 		attempts++
 		err = execute(conf, []string{"--cluster", "rebalance", conf.NodeAddr, "--cluster-use-empty-masters"})
 		if err != nil {
-			if attempts >= 5 {
+			if attempts >= 10 {
 				return err
 			}
 			continue
 		}
+		logger.Info("cluster shard slot rebalance succeeded")
 		break
 	}
 	return nil

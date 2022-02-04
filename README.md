@@ -57,8 +57,6 @@ $ ./attache-control -help
 Usage of ./attache-control:
   -attempt-interval duration
     	Duration to wait between attempts to join or create a cluster (e.g. '1s') (default 3s)
-  -attempt-limit int
-    	Number of times to join or create a cluster before exiting (default 20)
   -await-service-name string
     	Consul Service for newly created Redis Cluster Nodes, (required)
   -consul-acl-token string

@@ -195,7 +195,7 @@ job "redis-cluster" {
     task "attache-control" {
       lifecycle {
         hook    = "poststart"
-        sidecar = false
+        sidecar = true
       }
       service {
         name = var.await-service-name

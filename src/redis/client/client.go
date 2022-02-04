@@ -23,7 +23,7 @@ type Client struct {
 	Client *redis.Client
 }
 
-func (h *Client) StateNewCheck() (bool, error) {
+func (h *Client) IsNew() (bool, error) {
 	var infoMatchingNewNodes = clusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
 	clusterInfo, err := h.GetClusterInfo()
 	if err != nil {
