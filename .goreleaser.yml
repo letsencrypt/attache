@@ -90,6 +90,7 @@ nfpms:
     maintainer: Let's Encrypt <opensource@letsencrypt.org>
     description: A sidecar that allows for effortless scaling of Redis Clusters using Hashicorp Nomad and Consul.
     homepage: https://github.com/letsencrypt/attache
+    license: Mozilla Public License Version 2.0
     formats:
     - deb
     - rpm
