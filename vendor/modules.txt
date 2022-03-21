@@ -10,8 +10,8 @@ github.com/dgryski/go-rendezvous
 # github.com/fatih/color v1.9.0
 ## explicit; go 1.13
 github.com/fatih/color
-# github.com/go-redis/redis/v8 v8.11.4
-## explicit; go 1.13
+# github.com/go-redis/redis/v8 v8.11.5
+## explicit; go 1.17
 github.com/go-redis/redis/v8
 github.com/go-redis/redis/v8/internal
 github.com/go-redis/redis/v8/internal/hashtag
@@ -59,8 +59,8 @@ github.com/mitchellh/mapstructure
 # github.com/sirupsen/logrus v1.8.1
 ## explicit; go 1.13
 github.com/sirupsen/logrus
-# golang.org/x/sys v0.0.0-20210423082822-04245dca01da
-## explicit; go 1.12
+# golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e
+## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
