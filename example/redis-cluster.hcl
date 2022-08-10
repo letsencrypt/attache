@@ -199,6 +199,7 @@ job "redis-cluster" {
       }
       service {
         name = var.await-service-name
+        port = "db"
         check {
           name     = "attache:tcp-alive"
           type     = "tcp"
