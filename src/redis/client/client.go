@@ -23,12 +23,20 @@ type Client struct {
 	Client *redis.Client
 }
 
+// IsNew returns 'true' if the contents of 'CLUSTER INFO' match those expected
+// of a node that has never been joined a cluster. 'cluster_state' will be
+// 'fail' as a minumum of 3 nodes is required. 'cluster_known_nodes' will be '1'
+// (self) since it's never been introduced to other nodes. 'cluster_slots_count'
+// and cluster_size' will both be '0' since slots are only assigned as part of
+// the inital clustering or during cluster rebalancing. If any of these fields
+// holds a different value, 'false' is returned.
 func (h *Client) IsNew() (bool, error) {
-	var infoMatchingNewNodes = clusterInfo{"fail", 0, 0, 0, 0, 1, 0, 0, 0, 0, 0}
-	clusterInfo, err := h.GetClusterInfo()
+	c, err := h.GetClusterInfo()
 	if err != nil {
 		return false, err
-	} else if *clusterInfo == infoMatchingNewNodes {
+	}
+
+	if c.State == "fail" && c.SlotsAssigned == 0 && c.KnownNodes == 1 && c.Size == 0 {
 		return true, nil
 	} else {
 		return false, nil

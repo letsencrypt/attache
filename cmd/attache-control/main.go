@@ -153,7 +153,14 @@ func (l *leader) joinOrCreateRedisCluster() error {
 		return nil
 	}
 
-	// This should never happen as long as the job and scaling opts match.
+	clusterNodesCount := len(primaryNodesInCluster) + len(replicaNodesInCluster)
+	if l.scalingOpts.NodesMissing(clusterNodesCount) == 0 {
+		// This will only happen when the Nomad job is scaled without a
+		// corresponding change to the scaling opts in Consul.
+		return fmt.Errorf("%s Nomad group count was scaled without a corresponding change to scaling opts", l.RedisOpts.NodeAddr)
+	}
+
+	// This should never happen.
 	return fmt.Errorf("%s couldn't be added to an existing cluster", l.RedisOpts.NodeAddr)
 }
 
